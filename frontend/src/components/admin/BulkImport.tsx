@@ -1,7 +1,7 @@
 "use client";
 
 import { Upload } from 'lucide-react';
-import React, { useCallback } from 'react';
+import React from 'react';
 
 export default function BulkImport() {
     // Stub functionality for CSV import

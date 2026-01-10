@@ -8,7 +8,7 @@ import axios from 'axios';
 
 export default function ExamPage() {
     const params = useParams();
-    const id = params.id;
+    const id = Array.isArray(params.id) ? params.id[0] : params.id;
     const [attempt, setAttempt] = useState<Attempt | null>(null);
     const [questions, setQuestions] = useState<Question[]>([]);
     const [loading, setLoading] = useState(true);

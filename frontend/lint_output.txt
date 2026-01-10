@@ -1,0 +1,78 @@
+
+> frontend@0.1.0 lint
+> eslint
+
+
+C:\laragon\www\exammaster-cbt\frontend\src\app\(auth)\login\page.tsx
+  23:18  warning  'err' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\laragon\www\exammaster-cbt\frontend\src\components\admin\BulkImport.tsx
+  4:17  warning  'useCallback' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\laragon\www\exammaster-cbt\frontend\src\components\exam\ExamEngine.tsx
+   3:38  warning  'useCallback' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+  28:21  error    Error: Cannot access variable before it is declared
+
+`handleSubmit` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+C:\laragon\www\exammaster-cbt\frontend\src\components\exam\ExamEngine.tsx:28:21
+  26 |                 if (prev <= 0) {
+  27 |                     clearInterval(timer);
+> 28 |                     handleSubmit();
+     |                     ^^^^^^^^^^^^ `handleSubmit` accessed before it is declared
+  29 |                     return 0;
+  30 |                 }
+  31 |                 return prev - 1;
+
+C:\laragon\www\exammaster-cbt\frontend\src\components\exam\ExamEngine.tsx:69:5
+  67 |     };
+  68 |
+> 69 |     const handleSubmit = async () => {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 70 |         setIsSubmitting(true);
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 71 |         try {
+     ÔÇª
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 81 |         }
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 82 |     };
+     | ^^^^^^^ `handleSubmit` is declared here
+  83 |
+  84 |     const currentQuestion = initialQuestions[currentQuestionIndex];
+  85 |                                                                                                                                                                                                                                                     react-hooks/immutability
+  35:8   warning  React Hook useEffect has a missing dependency: 'handleSubmit'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            react-hooks/exhaustive-deps
+  40:13  error    Error: Cannot access variable before it is declared
+
+`saveProgress` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+C:\laragon\www\exammaster-cbt\frontend\src\components\exam\ExamEngine.tsx:40:13
+  38 |     useEffect(() => {
+  39 |         const saveInterval = setInterval(() => {
+> 40 |             saveProgress();
+     |             ^^^^^^^^^^^^ `saveProgress` accessed before it is declared
+  41 |         }, 30000);
+  42 |         return () => clearInterval(saveInterval);
+  43 |     }, [answers]);
+
+C:\laragon\www\exammaster-cbt\frontend\src\components\exam\ExamEngine.tsx:45:5
+  43 |     }, [answers]);
+  44 |
+> 45 |     const saveProgress = async () => {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 46 |         console.log('Auto-saving...', answers);
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 47 |         // Loop through answers and save changed ones (optimization needed in real app)
+     ÔÇª
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 62 |         }
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 63 |     };
+     | ^^^^^^^ `saveProgress` is declared here
+  64 |
+  65 |     const handleAnswerSelect = (optionId: string | number) => {
+  66 |         setAnswers(prev => ({ ...prev, [initialQuestions[currentQuestionIndex].id]: String(optionId) }));  react-hooks/immutability
+  43:8   warning  React Hook useEffect has a missing dependency: 'saveProgress'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            react-hooks/exhaustive-deps
+
+Ô£û 7 problems (2 errors, 5 warnings)
+

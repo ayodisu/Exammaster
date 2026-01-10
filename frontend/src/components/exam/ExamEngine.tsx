@@ -14,10 +14,52 @@ interface ExamEngineProps {
 export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProps) {
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<number, string>>({});
+    const answersRef = React.useRef(answers); // Ref to hold latest answers
     const [timeLeft, setTimeLeft] = useState(attempt.exam ? attempt.exam.duration_minutes * 60 : 0);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useExamSecurity({ attemptId: attempt.id });
+
+    // Update ref when answers change
+    useEffect(() => {
+        answersRef.current = answers;
+    }, [answers]);
+
+    // Defined before effects to allow usage
+    const saveProgress = useCallback(async () => {
+        const currentAns = answersRef.current;
+        console.log('Auto-saving...');
+        const currentQ = initialQuestions[currentQuestionIndex];
+        // We only save the current question's answer if it exists
+        if (currentAns[currentQ.id]) {
+             try {
+                await axios.post(`http://localhost:8000/api/attempts/${attempt.id}/save`, {
+                    question_id: currentQ.id,
+                    student_answer: currentAns[currentQ.id],
+                    time_spent_seconds: 0
+                }, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+            } catch (err) {
+                console.error('Save failed', err);
+            }
+        }
+    }, [attempt.id, currentQuestionIndex, initialQuestions]);
+
+    const handleSubmit = useCallback(async () => {
+        setIsSubmitting(true);
+        try {
+            await saveProgress();
+            await axios.post(`http://localhost:8000/api/attempts/${attempt.id}/finish`, {}, {
+                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            alert('Exam Submitted!');
+            window.location.href = '/exams';
+        } catch (error) {
+            console.error('Submit failed', error);
+            setIsSubmitting(false);
+        }
+    }, [attempt.id, saveProgress]);
 
     // Timer
     useEffect(() => {
@@ -32,7 +74,7 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
             });
         }, 1000);
         return () => clearInterval(timer);
-    }, []);
+    }, [handleSubmit]);
 
     // Auto-save every 30s
     useEffect(() => {
@@ -40,46 +82,13 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
             saveProgress();
         }, 30000);
         return () => clearInterval(saveInterval);
-    }, [answers]);
-
-    const saveProgress = async () => {
-        console.log('Auto-saving...', answers);
-        // Loop through answers and save changed ones (optimization needed in real app)
-        // For now, submitting current question's answer
-        const currentQ = initialQuestions[currentQuestionIndex];
-        if (answers[currentQ.id]) {
-             try {
-                await axios.post(`http://localhost:8000/api/attempts/${attempt.id}/save`, {
-                    question_id: currentQ.id,
-                    student_answer: answers[currentQ.id],
-                    time_spent_seconds: 0 // TODO: Track per question
-                }, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-                });
-            } catch (err) {
-                console.error('Save failed', err);
-            }
-        }
-    };
+    }, [saveProgress]);
 
     const handleAnswerSelect = (optionId: string | number) => {
         setAnswers(prev => ({ ...prev, [initialQuestions[currentQuestionIndex].id]: String(optionId) }));
     };
 
-    const handleSubmit = async () => {
-        setIsSubmitting(true);
-        try {
-            await saveProgress(); // Save last changes
-            await axios.post(`http://localhost:8000/api/attempts/${attempt.id}/finish`, {}, {
-                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-            });
-            alert('Exam Submitted!');
-            window.location.href = '/dashboard'; // Redirect
-        } catch (error) {
-            console.error('Submit failed', error);
-            setIsSubmitting(false);
-        }
-    };
+
 
     const currentQuestion = initialQuestions[currentQuestionIndex];
 

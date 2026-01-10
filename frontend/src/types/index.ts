@@ -18,6 +18,12 @@ export interface Exam {
     title: string;
     duration_minutes: number;
     questions?: Question[];
+    is_published?: boolean;
+    stats?: {
+        attempts: number;
+        avg_score: number;
+        pass_rate: string | number;
+    };
 }
 
 export interface Attempt {
@@ -25,6 +31,7 @@ export interface Attempt {
     student_id: number;
     exam_id: number;
     status: 'ongoing' | 'submitted';
+    score?: number;
     started_at: string;
     exam?: Exam;
 }
