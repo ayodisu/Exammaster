@@ -18,7 +18,12 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::get('/students', function () {
-        return \App\Models\User::where('role', 'student')->get();
+        return \App\Models\Candidate::withCount('attempts')->get();
+    });
+
+    Route::get('/students/{id}/attempts', function ($id) {
+        $student = \App\Models\Candidate::findOrFail($id);
+        return $student->attempts()->with('exam')->orderBy('created_at', 'desc')->get();
     });
 
     // Exam Management
@@ -27,6 +32,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/exams/stats/overview', [App\Http\Controllers\ExamController::class, 'stats']);
     Route::get('/exams/{id}', [App\Http\Controllers\ExamController::class, 'show']);
     Route::put('/exams/{id}/status', [App\Http\Controllers\ExamController::class, 'toggleStatus']);
+    Route::delete('/exams/{id}', [App\Http\Controllers\ExamController::class, 'destroy']);
     Route::get('/exams/{id}/attempts', [App\Http\Controllers\ExamController::class, 'getAttempts']);
 
     // Exam Taking

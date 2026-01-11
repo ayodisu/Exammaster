@@ -64,13 +64,21 @@ export default function StudentDashboard() {
 
     const pendingExamsCount = exams.filter(e => e.is_active && !results.some(r => r.exam_id === e.id)).length;
 
-    // Filter available assessments: Active AND (Not Taken OR (Taken & Mock))
+    // Filter available and upcoming assessments
+    // Include: Active exams not yet taken (or mock), OR scheduled exams
     const availableAssessments = exams.filter(exam => {
-        if (!exam.is_active) return false; // Must be active
         const hasTaken = results.some(r => r.exam_id === exam.id);
-        if (!hasTaken) return true; // Not taken yet
-        if (exam.type === 'mock') return true; // Mock is retakeable
-        return false; // Taken test/exam is hidden
+        
+        // Show scheduled (future) exams
+        if ((exam as any).is_scheduled) return true;
+        
+        // Show active exams that haven't been taken
+        if (exam.is_active && !hasTaken) return true;
+        
+        // Show mock exams even if taken (retakeable)
+        if (exam.is_active && exam.type === 'mock') return true;
+        
+        return false;
     });
 
     const recentResults = [...results]
@@ -148,19 +156,27 @@ export default function StudentDashboard() {
                             availableAssessments.map((exam: Exam) => {
                                 const completedAttempt = results.find(r => r.exam_id === exam.id);
                                 const isCompleted = !!completedAttempt;
+                                const isScheduled = (exam as any).is_scheduled;
+                                const canTake = (exam as any).can_take;
+                                const scheduledTime = (exam as any).scheduled_time;
 
                                 return (
-                                    <div key={exam.id} className="group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md flex justify-between items-center">
+                                    <div key={exam.id} className={`group bg-white p-5 rounded-2xl border shadow-sm transition-all flex justify-between items-center ${isScheduled ? 'border-amber-200 bg-amber-50/30' : 'border-slate-200 hover:shadow-md'}`}>
                                         <div>
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2 flex-wrap">
                                                 <h3 className="font-bold text-slate-800">{exam.title}</h3>
+                                                {isScheduled && (
+                                                    <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">
+                                                        Scheduled
+                                                    </span>
+                                                )}
                                                 {isCompleted && (
                                                     <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">
                                                         Completed
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="flex gap-3 mt-1 text-xs font-medium text-slate-500">
+                                            <div className="flex gap-3 mt-1 text-xs font-medium text-slate-500 flex-wrap">
                                                 <span className={`px-2 py-0.5 rounded uppercase font-bold text-[10px] tracking-wider ${
                                                     exam.type === 'mock' ? 'bg-amber-100 text-amber-700' :
                                                     exam.type === 'test' ? 'bg-purple-100 text-purple-700' :
@@ -169,14 +185,28 @@ export default function StudentDashboard() {
                                                     {exam.type}
                                                 </span>
                                                 <span className="bg-slate-100 px-2 py-0.5 rounded">{exam.duration_minutes} Mins</span>
+                                                {isScheduled && scheduledTime && (
+                                                    <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded">
+                                                        Starts: {new Date(scheduledTime).toLocaleString()}
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                         {/* Button Logic */}
-                                        <Link href={`/exam/${exam.id}`}>
-                                            <button className={`px-4 py-2 rounded-full font-bold text-sm transition-all hover:scale-105 active:scale-95 text-white ${isCompleted ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                                                {isCompleted ? 'Retake' : 'Start'}
+                                        {isScheduled ? (
+                                            <button 
+                                                disabled 
+                                                className="px-4 py-2 rounded-full font-bold text-sm bg-slate-200 text-slate-500 cursor-not-allowed"
+                                            >
+                                                Not Yet
                                             </button>
-                                        </Link>
+                                        ) : (
+                                            <Link href={`/exam/${exam.id}`}>
+                                                <button className={`px-4 py-2 rounded-full font-bold text-sm transition-all hover:scale-105 active:scale-95 text-white ${isCompleted ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                                                    {isCompleted ? 'Retake' : 'Start'}
+                                                </button>
+                                            </Link>
+                                        )}
                                     </div>
                                 );
                             })

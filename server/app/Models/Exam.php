@@ -18,12 +18,14 @@ class Exam extends Model
         'type',
         'scheduled_at',
         'is_active',
+        'enabled_at',
     ];
 
     protected $casts = [
         'is_published' => 'boolean',
         'is_active' => 'boolean',
         'scheduled_at' => 'datetime',
+        'enabled_at' => 'datetime',
         'settings_json' => 'array',
     ];
 

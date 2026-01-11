@@ -14,7 +14,7 @@ export default function ExaminerDashboard() {
     const [loading, setLoading] = useState(true);
     const [togglingId, setTogglingId] = useState<number | null>(null);
     const [successMsg, setSuccessMsg] = useState<{id: number, text: string} | null>(null);
-    const [alertState, setAlertState] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({
+    const [alertState, setAlertState] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'error' | 'info' | 'warning'; onConfirm?: () => void; confirmText?: string; }>({
         isOpen: false,
         title: '',
         message: '',
@@ -79,9 +79,27 @@ export default function ExaminerDashboard() {
     };
 
     const handleDeleteExam = async (id: number) => {
-        if(!confirm('Are you sure you want to delete this exam?')) return;
-        // API call to delete (needs endpoint)
-        setExams(prev => prev.filter(e => e.id !== id));
+        setAlertState({
+            isOpen: true,
+            title: 'Delete Exam?',
+            message: 'Are you sure you want to delete this exam? This action cannot be undone.',
+            type: 'warning',
+            confirmText: 'Yes, Delete',
+            onConfirm: async () => {
+                setAlertState(prev => ({ ...prev, isOpen: false }));
+                try {
+                    const token = localStorage.getItem('token');
+                    await axios.delete(`http://localhost:8000/api/exams/${id}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    setExams(prev => prev.filter(e => e.id !== id));
+                    setAlertState({ isOpen: true, title: 'Deleted', message: 'Exam deleted successfully.', type: 'success' });
+                } catch (error: any) {
+                    const msg = error.response?.data?.message || "Failed to delete exam.";
+                    setAlertState({ isOpen: true, title: 'Error', message: msg, type: 'error' });
+                }
+            }
+        });
     };
 
     return (
@@ -92,6 +110,8 @@ export default function ExaminerDashboard() {
                 title={alertState.title}
                 message={alertState.message}
                 type={alertState.type}
+                onConfirm={alertState.onConfirm}
+                confirmText={alertState.confirmText}
             />
              <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>

@@ -73,6 +73,58 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
         return () => clearInterval(timer);
     }, []);
 
+    // Auto-submit on page close/navigate away
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            // Try to submit using sendBeacon for reliability
+            const token = localStorage.getItem('token');
+            if (token && !submissionResult) {
+                navigator.sendBeacon(
+                    `http://localhost:8000/api/attempts/${attempt.id}/finish`,
+                    JSON.stringify({})
+                );
+            }
+            // Show browser confirmation dialog
+            e.preventDefault();
+            e.returnValue = 'Your exam will be submitted if you leave. Are you sure?';
+            return e.returnValue;
+        };
+
+        const handlePageHide = () => {
+            // Fallback for mobile browsers
+            const token = localStorage.getItem('token');
+            if (token && !submissionResult) {
+                navigator.sendBeacon(
+                    `http://localhost:8000/api/attempts/${attempt.id}/finish`,
+                    JSON.stringify({})
+                );
+            }
+        };
+
+        const handleVisibilityChange = () => {
+            // If page becomes hidden (tab closed, switched away for too long), submit
+            if (document.visibilityState === 'hidden' && !submissionResult) {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    navigator.sendBeacon(
+                        `http://localhost:8000/api/attempts/${attempt.id}/finish`,
+                        JSON.stringify({})
+                    );
+                }
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        window.addEventListener('pagehide', handlePageHide);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            window.removeEventListener('pagehide', handlePageHide);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [attempt.id, submissionResult]);
+
     const saveProgress = useCallback(async () => {
         if (isSubmitting || submissionResult) return;
         
@@ -118,6 +170,11 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
             setSubmissionResult({ score: res.data.score || 0, passed: res.data.passed ?? true });
             setShowResultModal(true);
             if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+            
+            // Auto-redirect to dashboard after 5 seconds
+            setTimeout(() => {
+                router.push('/student-dashboard');
+            }, 5000);
         } catch (error) {
             console.error('Submit failed', error);
             setIsSubmitting(false);
@@ -165,8 +222,8 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
                         <button onClick={enterFullscreen} className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-bold transition-transform active:scale-95 shadow-lg shadow-blue-900/50">
                             Enter Fullscreen
                         </button>
-                        <button onClick={() => router.back()} className="block mx-auto mt-4 text-sm text-slate-500 hover:text-white">
-                            Exit Exam
+                        <button onClick={handleSubmit} className="block mx-auto mt-4 text-sm text-slate-500 hover:text-white">
+                            Exit Exam (Submits Automatically)
                         </button>
                     </div>
                 </div>
@@ -371,7 +428,9 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
                         
                         <div className="bg-slate-50 rounded-2xl p-6 mb-8 border border-slate-100">
                             <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">Your Score</span>
-                            <div className={`text-6xl font-black mt-2 ${submissionResult.passed ? 'text-emerald-600' : 'text-slate-900'}`}>\n                                {submissionResult.score}%\n                            </div>
+                            <div className={`text-6xl font-black mt-2 ${submissionResult.passed ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                {submissionResult.score}%
+                            </div>
                         </div>
 
                         <button
@@ -380,6 +439,7 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
                         >
                             Return to Dashboard
                         </button>
+                        <p className="text-xs text-slate-400 mt-4">Redirecting automatically in 5 seconds...</p>
                     </div>
                 </div>
             )}

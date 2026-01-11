@@ -33,7 +33,23 @@ class ExamController extends Controller
                 return $exam;
             });
         }
-        return Exam::where('is_published', true)->get();
+
+        // For students: return all published exams with availability status
+        $exams = Exam::where('is_published', true)->get();
+        return $exams->map(function ($exam) {
+            // Exam is takeable if it's active
+            $exam->can_take = $exam->is_active;
+
+            // Calculate if exam is scheduled for future
+            if ($exam->scheduled_at && !$exam->is_active) {
+                $exam->is_scheduled = true;
+                $exam->scheduled_time = $exam->scheduled_at;
+            } else {
+                $exam->is_scheduled = false;
+            }
+
+            return $exam;
+        });
     }
 
     public function store(Request $request)
@@ -60,10 +76,14 @@ class ExamController extends Controller
 
         $examData = collect($validated)->except('questions')->toArray();
 
+        // If exam has a scheduled date, it should start as inactive
+        // The scheduler will enable it at the scheduled time
+        $hasSchedule = !empty($validated['scheduled_at']);
+
         $exam = $request->user()->exams()->create([
             ...$examData,
             'is_published' => true,
-            'is_active' => true
+            'is_active' => !$hasSchedule // Active immediately only if no schedule
         ]);
 
         if (!empty($validated['questions'])) {
@@ -225,7 +245,15 @@ class ExamController extends Controller
         }
 
         $exam = $request->user()->exams()->findOrFail($id);
-        $exam->update(['is_active' => !$exam->is_active]);
+
+        $newActiveState = !$exam->is_active;
+
+        // When manually enabling, set enabled_at for 1hr window tracking
+        $exam->update([
+            'is_active' => $newActiveState,
+            'enabled_at' => $newActiveState ? \Illuminate\Support\Carbon::now() : null
+        ]);
+
         return response()->json($exam);
     }
 
@@ -247,5 +275,22 @@ class ExamController extends Controller
             ->get();
 
         return response()->json($attempts);
+    }
+
+    public function destroy(Request $request, $id)
+    {
+        if (! $request->user() instanceof \App\Models\Examiner) {
+            abort(403, 'Unauthorized');
+        }
+
+        $exam = $request->user()->exams()->findOrFail($id);
+
+        // Delete related data first
+        $exam->questions()->delete();
+        $exam->attempts()->delete();
+
+        $exam->delete();
+
+        return response()->json(['message' => 'Exam deleted successfully']);
     }
 }
