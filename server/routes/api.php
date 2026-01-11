@@ -24,7 +24,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Exam Management
     Route::get('/exams', [ExamController::class, 'index']);
     Route::post('/exams', [ExamController::class, 'store']);
-    Route::get('/exams/{id}', [ExamController::class, 'show']);
+    Route::get('/exams/stats/overview', [App\Http\Controllers\ExamController::class, 'stats']);
+    Route::get('/exams/{id}', [App\Http\Controllers\ExamController::class, 'show']);
+    Route::put('/exams/{id}/status', [App\Http\Controllers\ExamController::class, 'toggleStatus']);
+    Route::get('/exams/{id}/attempts', [App\Http\Controllers\ExamController::class, 'getAttempts']);
 
     // Exam Taking
     Route::post('/exams/{id}/start', [ExamController::class, 'start']);

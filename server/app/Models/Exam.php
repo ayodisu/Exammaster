@@ -15,10 +15,15 @@ class Exam extends Model
         'duration_minutes',
         'is_published',
         'settings_json',
+        'type',
+        'scheduled_at',
+        'is_active',
     ];
 
     protected $casts = [
         'is_published' => 'boolean',
+        'is_active' => 'boolean',
+        'scheduled_at' => 'datetime',
         'settings_json' => 'array',
     ];
 

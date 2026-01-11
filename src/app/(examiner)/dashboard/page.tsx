@@ -3,32 +3,78 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import axios from 'axios';
-import { Plus, Trash2, BookOpen, Clock, Users, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, BookOpen, Clock, Users, ChevronRight, Power, Loader2 } from 'lucide-react';
 import { Exam } from '@/types';
+import CurrentTime from '@/components/CurrentTime';
+
+import AlertModal from '@/components/ui/AlertModal';
 
 export default function ExaminerDashboard() {
     const [exams, setExams] = useState<Exam[]>([]);
     const [loading, setLoading] = useState(true);
+    const [togglingId, setTogglingId] = useState<number | null>(null);
+    const [successMsg, setSuccessMsg] = useState<{id: number, text: string} | null>(null);
+    const [alertState, setAlertState] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        type: 'info'
+    });
 
     useEffect(() => {
         fetchExams();
     }, []);
 
-    const [studentCount, setStudentCount] = useState<number | string>('--');
+    const [stats, setStats] = useState({ total_students: 0, avg_duration: '--' });
 
     const fetchExams = async () => {
         try {
             const token = localStorage.getItem('token');
-            const [resExams, resStudents] = await Promise.all([
-                axios.get('http://localhost:8000/api/exams', { headers: { 'Authorization': `Bearer ${token}` } }),
-                axios.get('http://localhost:8000/api/students', { headers: { 'Authorization': `Bearer ${token}` } })
+            const headers = { 'Authorization': `Bearer ${token}` };
+            
+            const [resExams, resStats] = await Promise.all([
+                axios.get('http://localhost:8000/api/exams', { headers }),
+                axios.get('http://localhost:8000/api/exams/stats/overview', { headers })
             ]);
+            
             setExams(resExams.data);
-            setStudentCount(resStudents.data.length);
+            setStats(resStats.data);
         } catch (error) {
             console.error('Failed to fetch data', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleToggleStatus = async (id: number) => {
+        if (togglingId === id) return; // Prevent double click
+        setTogglingId(id);
+        try {
+            const token = localStorage.getItem('token');
+            await axios.put(`http://localhost:8000/api/exams/${id}/status`, {}, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            setExams(prev => prev.map(e => {
+                if (e.id === id) {
+                    const newStatus = !e.is_active;
+                    setSuccessMsg({ id, text: newStatus ? "Exam Activated" : "Exam Ended" });
+                    setTimeout(() => setSuccessMsg(null), 3000);
+                    return { ...e, is_active: newStatus };
+                }
+                return e;
+            }));
+        } catch (error: any) {
+            console.error('Failed to update status', error);
+            const msg = error.response?.data?.message || "Failed to update exam status. Please try again.";
+            setAlertState({
+                isOpen: true,
+                title: 'Update Failed',
+                message: msg,
+                type: 'error'
+            });
+        } finally {
+            setTogglingId(null);
         }
     };
 
@@ -40,17 +86,28 @@ export default function ExaminerDashboard() {
 
     return (
         <div className="p-8 min-h-screen bg-slate-50 text-slate-900 space-y-8 animate-in fade-in duration-500">
-            <header className="flex justify-between items-end">
+             <AlertModal 
+                isOpen={alertState.isOpen}
+                onClose={() => setAlertState(prev => ({ ...prev, isOpen: false }))}
+                title={alertState.title}
+                message={alertState.message}
+                type={alertState.type}
+            />
+             <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Examiner Dashboard</h1>
-                    <p className="text-slate-500 mt-2">Manage your assessments and question banks.</p>
+                     <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-bold uppercase tracking-wide">Examiner Portal</span>
+                    <h1 className="text-3xl font-bold text-slate-800 mt-2">Dashboard</h1>
+                    <p className="text-slate-500">Manage exams and view student performance.</p>
                 </div>
-                <Link 
-                    href="/exams/create"
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-200 transition-all active:scale-95"
-                >
-                    <Plus size={20} /> Set New Exam
-                </Link>
+                <div className="flex items-center gap-4">
+                    <CurrentTime />
+                    <Link 
+                        href="/admin/exams/create"
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-200 transition-all active:scale-95"
+                    >
+                        <Plus size={20} /> Set New Exam
+                    </Link>
+                </div>
             </header>
 
             {/* Stats Overview */}
@@ -73,7 +130,7 @@ export default function ExaminerDashboard() {
                         </div>
                         <div>
                             <p className="text-slate-500 text-sm font-medium">Total Candidates</p>
-                            <h3 className="text-2xl font-bold text-slate-800">{studentCount}</h3>
+                            <h3 className="text-2xl font-bold text-slate-800">{stats.total_students}</h3>
                         </div>
                     </div>
                 </div>
@@ -84,7 +141,7 @@ export default function ExaminerDashboard() {
                         </div>
                         <div>
                             <p className="text-slate-500 text-sm font-medium">Avg Duration</p>
-                            <h3 className="text-2xl font-bold text-slate-800">--</h3>
+                            <h3 className="text-2xl font-bold text-slate-800">{stats.avg_duration}</h3>
                         </div>
                     </div>
                 </div>
@@ -106,7 +163,7 @@ export default function ExaminerDashboard() {
                                 <BookOpen size={32} />
                             </div>
                             <p className="text-slate-500 mb-4">No exams created yet.</p>
-                            <Link href="/exams/create" className="text-indigo-600 font-medium hover:underline">Create your first exam</Link>
+                            <Link href="/admin/exams/create" className="text-indigo-600 font-medium hover:underline">Create your first exam</Link>
                         </div>
                     ) : (
                         exams.map((exam: Exam) => (
@@ -145,6 +202,30 @@ export default function ExaminerDashboard() {
                                     )}
                                     <div className="flex items-center gap-4">
                                         <span className="text-xs text-slate-400 hidden sm:inline">ID: {exam.id}</span>
+                                        
+                                        {/* Success Message */}
+                                        {successMsg?.id === exam.id && (
+                                            <span className="text-xs font-bold text-emerald-600 animate-in fade-in slide-in-from-right-2">
+                                                {successMsg.text}
+                                            </span>
+                                        )}
+
+                                        <button 
+                                            onClick={() => handleToggleStatus(exam.id)}
+                                            disabled={togglingId === exam.id}
+                                            className={`p-2 rounded-lg transition-colors ${
+                                                exam.is_active 
+                                                    ? 'text-emerald-600 hover:bg-emerald-50' 
+                                                    : 'text-slate-400 hover:bg-slate-100'
+                                            } ${togglingId === exam.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            title={exam.is_active ? "End Exam" : "Activate Exam"}
+                                        >
+                                            {togglingId === exam.id ? (
+                                                <Loader2 size={18} className="animate-spin" />
+                                            ) : (
+                                                <Power size={18} />
+                                            )}
+                                        </button>
                                         <button 
                                             onClick={() => handleDeleteExam(exam.id)}
                                             className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -152,7 +233,7 @@ export default function ExaminerDashboard() {
                                         >
                                             <Trash2 size={18} />
                                         </button>
-                                        <Link href={`/exams/${exam.id}`} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                                        <Link href={`/admin/exams/${exam.id}`} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
                                             <ChevronRight size={18} />
                                         </Link>
                                     </div>

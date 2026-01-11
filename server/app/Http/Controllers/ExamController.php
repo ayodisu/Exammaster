@@ -38,6 +38,9 @@ class ExamController extends Controller
 
     public function store(Request $request)
     {
+        \Illuminate\Support\Facades\Log::info('Store Exam Request User Class: ' . get_class($request->user()));
+        \Illuminate\Support\Facades\Log::info('User ID: ' . $request->user()->id);
+
         if (! $request->user() instanceof \App\Models\Examiner) {
             abort(403, 'Unauthorized');
         }
@@ -45,6 +48,8 @@ class ExamController extends Controller
         $validated = $request->validate([
             'title' => 'required|string',
             'duration_minutes' => 'required|integer',
+            'type' => 'required|in:exam,mock,test',
+            'scheduled_at' => 'nullable|date',
             'settings_json' => 'nullable|array',
             'questions' => 'nullable|array',
             'questions.*.text' => 'required|string',
@@ -57,7 +62,8 @@ class ExamController extends Controller
 
         $exam = $request->user()->exams()->create([
             ...$examData,
-            'is_published' => true
+            'is_published' => true,
+            'is_active' => true
         ]);
 
         if (!empty($validated['questions'])) {
@@ -79,9 +85,52 @@ class ExamController extends Controller
         return response()->json($exam->load('questions'), 201);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        return Exam::with('questions')->findOrFail($id);
+        if ($request->user() instanceof \App\Models\Examiner) {
+            return $request->user()->exams()->with('questions')->findOrFail($id);
+        }
+        // If candidate, check if active
+        return Exam::where('is_active', true)->with('questions')->findOrFail($id);
+    }
+
+    public function stats(Request $request)
+    {
+        \Illuminate\Support\Facades\Log::info('Stats Request User Class: ' . ($request->user() ? get_class($request->user()) : 'null'));
+        \Illuminate\Support\Facades\Log::info('Stats Request User ID: ' . ($request->user() ? $request->user()->id : 'null'));
+
+        if (! $request->user() instanceof \App\Models\Examiner) {
+            abort(403, 'Unauthorized');
+        }
+
+        $exams = $request->user()->exams()->with('attempts')->get();
+
+        $uniqueStudentIds = [];
+        $totalDurations = 0;
+        $attemptCountForDuration = 0;
+
+        foreach ($exams as $exam) {
+            $attempts = $exam->attempts->where('status', 'submitted');
+
+            foreach ($attempts as $attempt) {
+                $uniqueStudentIds[$attempt->student_id] = true;
+
+                // Calculate duration based on submitted_at - started_at
+                // Or simplified if we tracked time_spent in responses
+                // For now, let's just use exam duration if full time used, or attempts diff
+                $start = Carbon::parse($attempt->started_at);
+                $end = Carbon::parse($attempt->submitted_at);
+                $totalDurations += $end->diffInMinutes($start);
+                $attemptCountForDuration++;
+            }
+        }
+
+        $avgDuration = $attemptCountForDuration > 0 ? round($totalDurations / $attemptCountForDuration) . ' mins' : '--';
+
+        return response()->json([
+            'total_students' => count($uniqueStudentIds),
+            'avg_duration' => $avgDuration
+        ]);
     }
 
     public function start(Request $request, $id)
@@ -167,5 +216,36 @@ class ExamController extends Controller
             ->where('student_id', $request->user()->id)
             ->where('status', 'submitted')
             ->get();
+    }
+
+    public function toggleStatus(Request $request, $id)
+    {
+        if (! $request->user() instanceof \App\Models\Examiner) {
+            abort(403, 'Unauthorized');
+        }
+
+        $exam = $request->user()->exams()->findOrFail($id);
+        $exam->update(['is_active' => !$exam->is_active]);
+        return response()->json($exam);
+    }
+
+    public function getAttempts(Request $request, $id)
+    {
+        if (! $request->user() instanceof \App\Models\Examiner) {
+            abort(403, 'Unauthorized');
+        }
+
+        $exam = $request->user()->exams()->findOrFail($id);
+
+        // Fetch attempts with student details
+        $attempts = Attempt::where('exam_id', $exam->id)
+            ->with(['student' => function ($query) {
+                // Select columns that ACTUALLY exist
+                $query->select('id', 'first_name', 'last_name', 'email', 'exam_number');
+            }])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json($attempts);
     }
 }

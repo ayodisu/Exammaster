@@ -25,7 +25,8 @@ export default function CandidateLoginPage() {
                 password
             });
             localStorage.setItem('token', res.data.token);
-            router.push('/exams');
+            localStorage.setItem('user', JSON.stringify(res.data.user));
+            router.push('/student-dashboard');
         } catch (err) {
             if (axios.isAxiosError(err) && err.response) {
                 setError(err.response.data.message || 'Login failed. Please check your credentials.');

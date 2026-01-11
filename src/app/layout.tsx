@@ -12,8 +12,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-import Navigation from "@/components/Navigation";
-
 export const metadata: Metadata = {
   title: "ExamMaster CBT",
   description: "Secure Computer Based Testing Platform",
@@ -30,9 +28,9 @@ export default function RootLayout({
         suppressHydrationWarning={true}
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Navigation />
         {children}
       </body>
     </html>
   );
 }
+

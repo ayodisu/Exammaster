@@ -34,11 +34,16 @@ class Candidate extends Authenticatable
         'password' => 'hashed',
     ];
 
-    protected $appends = ['role'];
+    protected $appends = ['role', 'name'];
 
     public function getRoleAttribute()
     {
         return 'student';
+    }
+
+    public function getNameAttribute()
+    {
+        return "{$this->first_name} {$this->last_name}";
     }
 
     // Relationships
