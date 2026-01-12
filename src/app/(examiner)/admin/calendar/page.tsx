@@ -16,7 +16,7 @@ export default function ExaminerCalendarPage() {
     useEffect(() => {
         const fetchExams = async () => {
             try {
-                const res = await axios.get(apiUrl('exams'), {
+                const res = await axios.get(apiUrl('assessments'), {
                     headers: getAuthHeaders()
                 });
                 
@@ -40,7 +40,11 @@ export default function ExaminerCalendarPage() {
     }, []);
 
     const handleAddEvent = (date: Date) => {
-        const dateStr = date.toISOString().split('T')[0];
+        // Use local date instead of UTC to prevent off-by-one error
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
         router.push(`/admin/exams/create?date=${dateStr}&returnTo=calendar`);
     };
 
@@ -52,14 +56,14 @@ export default function ExaminerCalendarPage() {
         <div className="p-8 min-h-screen bg-slate-50 text-slate-900 space-y-8 animate-in fade-in duration-500">
             <div className="flex justify-between items-end">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Exam Schedule</h1>
-                    <p className="text-slate-500 mt-2">View and manage exam dates.</p>
+                    <h1 className="text-3xl font-bold text-slate-900">Assessment Schedule</h1>
+                    <p className="text-slate-500 mt-2">View and manage assessment dates.</p>
                 </div>
                 <Link 
                     href="/admin/exams/create?returnTo=calendar"
                     className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-200 transition-all active:scale-95"
                 >
-                    <Plus size={20} /> Schedule Exam
+                    <Plus size={20} /> Schedule Assessment
                 </Link>
             </div>
 

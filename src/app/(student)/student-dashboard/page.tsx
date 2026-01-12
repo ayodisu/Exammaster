@@ -27,7 +27,7 @@ export default function StudentDashboard() {
         const fetchInitialData = async () => {
             try {
                 const [resExams, resUser, resAttempts] = await Promise.all([
-                    axios.get(apiUrl('exams'), { headers }),
+                    axios.get(apiUrl('assessments'), { headers }),
                     axios.get(apiUrl('user'), { headers }),
                     axios.get(apiUrl('attempts'), { headers })
                 ]);
@@ -43,7 +43,7 @@ export default function StudentDashboard() {
 
         const fetchUpdates = async () => {
             try {
-                const res = await axios.get(apiUrl('exams'), { headers });
+                const res = await axios.get(apiUrl('assessments'), { headers });
                 setExams(res.data);
             } catch (err: unknown) {
                 console.error("Polling failed", err);

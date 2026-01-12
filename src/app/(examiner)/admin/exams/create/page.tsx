@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { apiUrl, getAuthHeaders } from '@/config/api';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, BookOpen, BrainCircuit, Layers, ArrowLeft } from 'lucide-react';
+import { Loader2, BookOpen, BrainCircuit, Layers, ArrowLeft, Calendar, Clock } from 'lucide-react';
 import Link from 'next/link';
 // import { generateExam } from '@/services/geminiService'; // TODO: Move to API route
 
@@ -18,7 +18,8 @@ export default function CreateExamPage() {
 
     const [topic, setTopic] = useState('');
     const [examType, setExamType] = useState<'exam' | 'mock' | 'test'>('exam');
-    const [scheduledDate, setScheduledDate] = useState(prefilledDate ? `${prefilledDate}T09:00` : '');
+    const [datePart, setDatePart] = useState(prefilledDate || '');
+    const [timePart, setTimePart] = useState('09:00');
     const [questionCount, setQuestionCount] = useState(5);
     const [isLoading, setIsLoading] = useState(false);
     
@@ -45,7 +46,7 @@ export default function CreateExamPage() {
                 title: `${topic} ${examType === 'mock' ? 'Mock' : 'Exam'}`,
                 duration_minutes: questionCount * 2,
                 type: examType,
-                scheduled_at: scheduledDate || null,
+                scheduled_at: (datePart && timePart) ? `${datePart}T${timePart}` : null,
                 questions: Array(questionCount).fill(null).map((_, i) => ({
                     text: `Sample Question ${i+1} about ${topic}`,
                     type: 'mcq',
@@ -55,20 +56,22 @@ export default function CreateExamPage() {
             };
 
             // Save to Backend
-            await axios.post(apiUrl('exams'), newExam, {
+            await axios.post(apiUrl('assessments'), newExam, {
                 headers: getAuthHeaders()
             });
 
             setAlertState({
                 isOpen: true,
                 title: 'Success!',
-                message: 'Exam created successfully. Redirecting...',
+                message: 'Assessment created successfully. Redirecting...',
                 type: 'success'
             });
 
             setTimeout(() => {
                 if (returnTo === 'calendar') {
                     router.push('/admin/calendar');
+                } else if (returnTo === 'assessments') {
+                    router.push('/admin/exams');
                 } else {
                     router.push('/dashboard');
                 }
@@ -76,7 +79,7 @@ export default function CreateExamPage() {
 
         } catch (error: unknown) {
             console.error('Creation error:', error);
-            let msg = "Failed to create exam. Please ensure all inputs are valid.";
+            let msg = "Failed to create assessment. Please ensure all inputs are valid.";
             if (error && typeof error === 'object' && 'response' in error) {
                 const axiosErr = error as { response?: { data?: { message?: string } } };
                 msg = axiosErr.response?.data?.message || msg;
@@ -104,6 +107,13 @@ export default function CreateExamPage() {
         );
     }
 
+    const getBackUrl = () => {
+        if (returnTo === 'calendar') return '/admin/calendar';
+        if (returnTo === 'assessments') return '/admin/exams';
+        return '/dashboard';
+    };
+    const backUrl = getBackUrl();
+
     return (
         <div className="min-h-screen bg-slate-50 p-8 flex items-center justify-center">
             <AlertModal 
@@ -117,8 +127,8 @@ export default function CreateExamPage() {
             <div className="max-w-2xl w-full bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
                 {/* ... Header ... */}
                 <div className="mb-8">
-                     <Link href="/dashboard" className="text-slate-400 hover:text-slate-600 flex items-center gap-1 text-sm font-medium mb-6">
-                        <ArrowLeft size={16} /> Back to Dashboard
+                    <Link href={backUrl} className="text-slate-400 hover:text-slate-600 flex items-center gap-1 text-sm font-medium mb-6">
+                        <ArrowLeft size={16} /> Back
                     </Link>
                     <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
                         <BrainCircuit className="text-indigo-600"/> Create New Assessment
@@ -171,19 +181,45 @@ export default function CreateExamPage() {
                     </div>
 
                     <div>
-                         <label className="block text-sm font-medium text-slate-700 mb-2">Scheduled Date (Optional)</label>
-                         <input 
-                            type="datetime-local"
-                            value={scheduledDate}
-                            onChange={(e) => setScheduledDate(e.target.value)}
-                            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                         />
-                         <p className="text-xs text-slate-400 mt-1">Leave blank to make it available immediately.</p>
+                         <label className="block text-sm font-medium text-slate-700 mb-2">Schedule (Optional)</label>
+                         <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1">Date</label>
+                                <div className="relative">
+                                    <div className="absolute left-3 top-3.5 text-slate-400 pointer-events-none">
+                                        <Calendar size={20} />
+                                    </div>
+                                    <input 
+                                        type="date"
+                                        value={datePart}
+                                        onChange={(e) => setDatePart(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-colors hover:border-indigo-300"
+                                        onClick={(e) => e.currentTarget.showPicker()}
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1">Time</label>
+                                <div className="relative">
+                                    <div className="absolute left-3 top-3.5 text-slate-400 pointer-events-none">
+                                        <Clock size={20} />
+                                    </div>
+                                    <input 
+                                        type="time"
+                                        value={timePart}
+                                        onChange={(e) => setTimePart(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-colors hover:border-indigo-300"
+                                        onClick={(e) => e.currentTarget.showPicker()}
+                                    />
+                                </div>
+                            </div>
+                         </div>
+                         <p className="text-xs text-slate-400 mt-2">Leave date blank to make it available immediately.</p>
                     </div>
 
                     <div className="flex items-center gap-3 mt-8 pt-4 border-t border-slate-100">
                         <Link
-                            href="/dashboard"
+                            href={backUrl}
                             className="px-6 py-3 rounded-xl font-medium text-slate-500 hover:bg-slate-50 transition-colors"
                         >
                             Cancel

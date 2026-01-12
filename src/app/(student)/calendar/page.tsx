@@ -14,7 +14,7 @@ export default function CalendarPage() {
     useEffect(() => {
         const fetchExams = async () => {
             try {
-                const res = await axios.get(apiUrl('exams'), {
+                const res = await axios.get(apiUrl('assessments'), {
                     headers: getAuthHeaders()
                 });
                 

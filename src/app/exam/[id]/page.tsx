@@ -21,7 +21,7 @@ export default function ExamPage() {
         const startExam = async () => {
             try {
                 // Start or resume attempt
-                const res = await axios.post(apiUrl(`exams/${id}/start`), {}, {
+                const res = await axios.post(apiUrl(`assessments/${id}/start`), {}, {
                     headers: getAuthHeaders()
                 });
                 setAttempt(res.data);

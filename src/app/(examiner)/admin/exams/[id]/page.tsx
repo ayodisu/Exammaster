@@ -32,8 +32,8 @@ export default function ExamDetailPage() {
                 const headers = getAuthHeaders();
                 
                 const [resExam, resAttempts] = await Promise.all([
-                    axios.get(apiUrl(`exams/${params.id}`), { headers }),
-                    axios.get(apiUrl(`exams/${params.id}/attempts`), { headers })
+                    axios.get(apiUrl(`assessments/${params.id}`), { headers }),
+                    axios.get(apiUrl(`assessments/${params.id}/attempts`), { headers })
                 ]);
 
                 setExam(resExam.data);
@@ -53,7 +53,7 @@ export default function ExamDetailPage() {
         if (!exam) return;
         setToggling(true);
         try {
-            await axios.put(apiUrl(`exams/${exam.id}/status`), {}, {
+            await axios.put(apiUrl(`assessments/${exam.id}/status`), {}, {
                 headers: getAuthHeaders()
             });
             

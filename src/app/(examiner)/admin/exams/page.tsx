@@ -14,7 +14,7 @@ export default function AdminExamsPage() {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
-    const [createdDateFilter, setCreatedDateFilter] = useState('');
+    // const [createdDateFilter, setCreatedDateFilter] = useState('');
     const [scheduledDateFilter, setScheduledDateFilter] = useState('');
     const [togglingId, setTogglingId] = useState<number | null>(null);
     const [alertState, setAlertState] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({
@@ -27,7 +27,7 @@ export default function AdminExamsPage() {
 
     const fetchExams = async () => {
         try {
-            const res = await axios.get(apiUrl('exams'), {
+            const res = await axios.get(apiUrl('assessments'), {
                 headers: getAuthHeaders()
             });
             setExams(res.data);
@@ -41,7 +41,7 @@ export default function AdminExamsPage() {
     const handleToggleStatus = async (id: number) => {
         setTogglingId(id);
         try {
-            await axios.put(apiUrl(`exams/${id}/status`), {}, {
+            await axios.put(apiUrl(`assessments/${id}/status`), {}, {
                 headers: getAuthHeaders()
             });
             
@@ -78,11 +78,6 @@ export default function AdminExamsPage() {
         if (statusFilter !== 'all') {
             matchesStatus = status === statusFilter;
         }
-
-        let matchesCreated = true;
-        if (createdDateFilter && exam.created_at) {
-            matchesCreated = new Date(exam.created_at).toISOString().split('T')[0] === createdDateFilter;
-        }
         
         let matchesScheduled = true;
         if (scheduledDateFilter) {
@@ -90,7 +85,7 @@ export default function AdminExamsPage() {
              else matchesScheduled = new Date(exam.scheduled_at).toISOString().split('T')[0] === scheduledDateFilter;
         }
 
-        return matchesSearch && matchesStatus && matchesCreated && matchesScheduled;
+        return matchesSearch && matchesStatus && matchesScheduled;
     });
 
     return (
@@ -102,16 +97,16 @@ export default function AdminExamsPage() {
 
             <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-800">My Exams</h1>
+                    <h1 className="text-3xl font-bold text-slate-800">My Assessments</h1>
                     <p className="text-slate-500 mt-1">Manage and monitor your assessments.</p>
                 </div>
                 <div className="flex items-center gap-4">
                     <CurrentTime />
                     <Link 
-                        href="/admin/exams/create"
+                        href="/admin/exams/create?returnTo=assessments"
                         className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-200 transition-all active:scale-95"
                     >
-                        <Plus size={20} /> Create Exam
+                        <Plus size={20} /> Create Assessment
                     </Link>
                 </div>
             </header>
@@ -123,7 +118,7 @@ export default function AdminExamsPage() {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                         <input 
                             type="text" 
-                            placeholder="Search exams..." 
+                            placeholder="Search assessments..." 
                             value={filter}
                             onChange={(e) => setFilter(e.target.value)}
                             className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
@@ -131,7 +126,7 @@ export default function AdminExamsPage() {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-slate-500">
                         <Filter size={16} />
-                        <span>{filteredExams.length} Exams</span>
+                        <span>{filteredExams.length} Assessments</span>
                     </div>
                 </div>
                 
@@ -149,15 +144,7 @@ export default function AdminExamsPage() {
                         <option value="draft">Draft</option>
                     </select>
 
-                    <div className="flex items-center gap-2">
-                        <label className="text-xs font-semibold text-slate-500">Created:</label>
-                        <input 
-                            type="date" 
-                            value={createdDateFilter}
-                            onChange={(e) => setCreatedDateFilter(e.target.value)}
-                            className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-500"
-                        />
-                    </div>
+
 
                     <div className="flex items-center gap-2">
                         <label className="text-xs font-semibold text-slate-500">Scheduled:</label>
@@ -169,11 +156,10 @@ export default function AdminExamsPage() {
                         />
                     </div>
                     
-                    {(statusFilter !== 'all' || createdDateFilter || scheduledDateFilter) && (
+                    {(statusFilter !== 'all' || scheduledDateFilter) && (
                         <button 
                             onClick={() => {
                                 setStatusFilter('all');
-                                setCreatedDateFilter('');
                                 setScheduledDateFilter('');
                             }}
                             className="text-xs text-red-500 hover:text-red-700 font-medium ml-auto"
@@ -206,7 +192,7 @@ export default function AdminExamsPage() {
                                         <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-400">
                                             <BookOpen size={24} />
                                         </div>
-                                        <p className="text-slate-500">No exams found.</p>
+                                        <p className="text-slate-500">No assessments found.</p>
                                     </td>
                                 </tr>
                             ) : (
@@ -263,7 +249,7 @@ export default function AdminExamsPage() {
                                                             ? 'text-emerald-600 hover:bg-emerald-50' 
                                                             : 'text-slate-400 hover:bg-slate-100'
                                                     }`}
-                                                    title={exam.is_active ? "End Exam" : "Activate Exam"}
+                                                    title={exam.is_active ? "End Assessment" : "Activate Assessment"}
                                                 >
                                                     {togglingId === exam.id ? <Loader2 size={18} className="animate-spin"/> : <Power size={18} />}
                                                 </button>

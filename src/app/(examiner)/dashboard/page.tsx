@@ -33,8 +33,8 @@ export default function ExaminerDashboard() {
             const headers = getAuthHeaders();
             
             const [resExams, resStats] = await Promise.all([
-                axios.get(apiUrl('exams'), { headers }),
-                axios.get(apiUrl('exams/stats/overview'), { headers })
+                axios.get(apiUrl('assessments'), { headers }),
+                axios.get(apiUrl('assessments/stats/overview'), { headers })
             ]);
             
             setExams(resExams.data);
@@ -51,7 +51,7 @@ export default function ExaminerDashboard() {
         setTogglingId(id);
         try {
             const token = localStorage.getItem('token');
-            await axios.put(apiUrl(`exams/${id}/status`), {}, {
+            await axios.put(apiUrl(`assessments/${id}/status`), {}, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             
@@ -92,7 +92,7 @@ export default function ExaminerDashboard() {
             onConfirm: async () => {
                 setAlertState(prev => ({ ...prev, isOpen: false }));
                 try {
-                    await axios.delete(apiUrl(`exams/${id}`), {
+                    await axios.delete(apiUrl(`assessments/${id}`), {
                         headers: getAuthHeaders()
                     });
                     setExams(prev => prev.filter(e => e.id !== id));
@@ -129,10 +129,10 @@ export default function ExaminerDashboard() {
                 <div className="flex items-center gap-4">
                     <CurrentTime />
                     <Link 
-                        href="/admin/exams/create"
+                        href="/admin/exams/create?returnTo=dashboard"
                         className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-200 transition-all active:scale-95"
                     >
-                        <Plus size={20} /> Set New Exam
+                        <Plus size={20} /> Create Assessment
                     </Link>
                 </div>
             </header>
@@ -145,7 +145,7 @@ export default function ExaminerDashboard() {
                             <BookOpen size={24} />
                         </div>
                         <div>
-                            <p className="text-slate-500 text-sm font-medium">Active Exams</p>
+                            <p className="text-slate-500 text-sm font-medium">Active Assessments</p>
                             <h3 className="text-2xl font-bold text-slate-800">{exams.length}</h3>
                         </div>
                     </div>
@@ -177,7 +177,7 @@ export default function ExaminerDashboard() {
             {/* Exam List */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-                    <h2 className="text-lg font-bold text-slate-800">Managed Exams</h2>
+                    <h2 className="text-lg font-bold text-slate-800">Managed Assessments</h2>
                     <span className="text-sm text-slate-500">{exams.length} total</span>
                 </div>
                 
@@ -189,15 +189,15 @@ export default function ExaminerDashboard() {
                             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
                                 <BookOpen size={32} />
                             </div>
-                            <p className="text-slate-500 mb-4">No exams created yet.</p>
-                            <Link href="/admin/exams/create" className="text-indigo-600 font-medium hover:underline">Create your first exam</Link>
+                            <p className="text-slate-500 mb-4">No assessments created yet.</p>
+                            <Link href="/admin/exams/create" className="text-indigo-600 font-medium hover:underline">Create your first assessment</Link>
                         </div>
                     ) : (
                         exams.map((exam: Exam) => (
                             <div key={exam.id} className="p-6 flex items-center justify-between hover:bg-slate-50 transition-colors group">
                                 <div className="flex items-start gap-4">
                                     <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-                                        EX
+                                        AS
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-slate-800">{exam.title}</h3>
@@ -245,7 +245,7 @@ export default function ExaminerDashboard() {
                                                     ? 'text-emerald-600 hover:bg-emerald-50' 
                                                     : 'text-slate-400 hover:bg-slate-100'
                                             } ${togglingId === exam.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                            title={exam.is_active ? "End Exam" : "Activate Exam"}
+                                            title={exam.is_active ? "End Assessment" : "Activate Assessment"}
                                         >
                                             {togglingId === exam.id ? (
                                                 <Loader2 size={18} className="animate-spin" />
@@ -256,7 +256,7 @@ export default function ExaminerDashboard() {
                                         <button 
                                             onClick={() => handleDeleteExam(exam.id)}
                                             className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                            title="Delete Exam"
+                                            title="Delete Assessment"
                                         >
                                             <Trash2 size={18} />
                                         </button>

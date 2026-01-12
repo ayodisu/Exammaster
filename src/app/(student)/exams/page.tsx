@@ -43,7 +43,7 @@ export default function StudentExamsPage() {
 
         const fetchUpdates = async () => {
             try {
-                const res = await axios.get(apiUrl('exams'), { headers });
+                const res = await axios.get(apiUrl('assessments'), { headers });
                 setExams(res.data);
             } catch (err: unknown) {
                 console.error("Polling failed", err);

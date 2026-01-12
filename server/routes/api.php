@@ -26,17 +26,17 @@ Route::middleware('auth:sanctum')->group(function () {
         return $student->attempts()->with('exam')->orderBy('created_at', 'desc')->get();
     });
 
-    // Exam Management
-    Route::get('/exams', [ExamController::class, 'index']);
-    Route::post('/exams', [ExamController::class, 'store']);
-    Route::get('/exams/stats/overview', [App\Http\Controllers\ExamController::class, 'stats']);
-    Route::get('/exams/{id}', [App\Http\Controllers\ExamController::class, 'show']);
-    Route::put('/exams/{id}/status', [App\Http\Controllers\ExamController::class, 'toggleStatus']);
-    Route::delete('/exams/{id}', [App\Http\Controllers\ExamController::class, 'destroy']);
-    Route::get('/exams/{id}/attempts', [App\Http\Controllers\ExamController::class, 'getAttempts']);
+    // Assessment Management
+    Route::get('/assessments', [ExamController::class, 'index']);
+    Route::post('/assessments', [ExamController::class, 'store']);
+    Route::get('/assessments/stats/overview', [App\Http\Controllers\ExamController::class, 'stats']);
+    Route::get('/assessments/{id}', [App\Http\Controllers\ExamController::class, 'show']);
+    Route::put('/assessments/{id}/status', [App\Http\Controllers\ExamController::class, 'toggleStatus']);
+    Route::delete('/assessments/{id}', [App\Http\Controllers\ExamController::class, 'destroy']);
+    Route::get('/assessments/{id}/attempts', [App\Http\Controllers\ExamController::class, 'getAttempts']);
 
-    // Exam Taking
-    Route::post('/exams/{id}/start', [ExamController::class, 'start']);
+    // Assessment Taking
+    Route::post('/assessments/{id}/start', [ExamController::class, 'start']);
     Route::post('/attempts/{attemptId}/save', [ExamController::class, 'saveAnswer']);
     Route::post('/attempts/{attemptId}/finish', [ExamController::class, 'finish']);
     Route::get('/attempts', [ExamController::class, 'userAttempts']);

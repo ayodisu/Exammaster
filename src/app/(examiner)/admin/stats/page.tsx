@@ -13,7 +13,7 @@ export default function ExaminerStatsPage() {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const res = await axios.get(apiUrl('exams'), {
+                const res = await axios.get(apiUrl('assessments'), {
                     headers: getAuthHeaders()
                 });
                 setExams(res.data);
