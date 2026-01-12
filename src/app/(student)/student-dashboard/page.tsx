@@ -6,7 +6,7 @@ import { apiUrl, getAuthHeaders } from '@/config/api';
 import { STORAGE_KEYS } from '@/config/constants';
 import { Exam, User, Attempt } from '@/types';
 import Link from 'next/link';
-import { GraduationCap, Clock, Award, FileText, ChevronRight } from 'lucide-react';
+import { GraduationCap, Clock, Award, FileText, ChevronRight, AlertTriangle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CurrentTime from '@/components/CurrentTime';
 
@@ -31,7 +31,7 @@ export default function StudentDashboard() {
                     axios.get(apiUrl('user'), { headers }),
                     axios.get(apiUrl('attempts'), { headers })
                 ]);
-                
+
                 setExams(resExams.data);
                 setUser(resUser.data);
                 setResults(resAttempts.data);
@@ -73,36 +73,84 @@ export default function StudentDashboard() {
     // Include: Active exams not yet taken (or mock), OR scheduled exams
     const availableAssessments = exams.filter(exam => {
         const hasTaken = results.some(r => r.exam_id === exam.id);
-        
+
         // If already taken, only allow retaking if it is a mock exam AND it is active
         if (hasTaken) {
             return exam.type === 'mock' && exam.is_active;
         }
-        
+
         // Show scheduled (future) exams
         if (exam.is_scheduled) return true;
-        
+
         // Show active exams
         if (exam.is_active) return true;
-        
+
         return false;
+    }).sort((a, b) => {
+        // Sort active exams to top
+        if (a.is_active && !b.is_active) return -1;
+        if (!a.is_active && b.is_active) return 1;
+        return 0;
     });
 
     const recentResults = [...results]
         .sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime())
         .slice(0, 3);
 
+
+
+    // Filter due exams for marquee (not mock, active or scheduled for today)
+    const dueExams = exams.filter(exam => {
+        if (exam.type === 'mock') return false;
+        if (exam.is_active) return true;
+        if (exam.scheduled_at) {
+            const examDate = new Date(exam.scheduled_at);
+            const today = new Date();
+            return examDate.toDateString() === today.toDateString();
+        }
+        return false;
+    });
+
     return (
         <div className="min-h-screen bg-slate-50 p-8 space-y-8 animate-in fade-in duration-500">
+            {/* Alert Slider CSS */}
+            <style jsx>{`
+                @keyframes marquee {
+                    0% { transform: translateX(100%); }
+                    100% { transform: translateX(-100%); }
+                }
+                .animate-marquee {
+                    animation: marquee 30s linear infinite;
+                }
+                .marquee-container:hover .animate-marquee {
+                    animation-play-state: paused;
+                }
+            `}</style>
+
+            {/* Due Assessment Slider */}
+            {dueExams.length > 0 && (
+                <div className="w-full bg-amber-50 border-l-4 border-amber-500 overflow-hidden relative py-3 shadow-sm rounded-r-xl marquee-container group cursor-default">
+                    <div className="animate-marquee whitespace-nowrap flex gap-16 items-center text-amber-800 px-4 font-bold text-sm">
+                        {dueExams.map(exam => (
+                            <span key={exam.id} className="flex items-center gap-2">
+                                <AlertTriangle size={18} className="text-amber-600" />
+                                <span className="uppercase tracking-wide text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">Action Required</span>
+                                Assessment Due: <span className="text-amber-900 underline decoration-amber-500/50">{exam.title}</span> is {exam.is_active ? 'currently ACTIVE' : `scheduled for TODAY at ${new Date(exam.scheduled_at!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
                     <div className="flex items-center gap-3 mb-2">
-                         <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase tracking-wide">Candidate Portal</span>
-                         {user.exam_number && (
+                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase tracking-wide">Candidate Portal</span>
+                        {user.exam_number && (
                             <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-bold font-mono tracking-wide">
                                 ID: {user.exam_number}
                             </span>
-                         )}
+                        )}
                     </div>
                     <h1 className="text-3xl font-bold text-slate-800">Hello, {user.first_name || user.name}</h1>
                     <p className="text-slate-500 mt-2">Welcome back to your dashboard.</p>
@@ -118,7 +166,7 @@ export default function StudentDashboard() {
                             <GraduationCap size={24} />
                         </div>
                         <div>
-                            <p className="text-slate-500 text-sm font-medium">Exams Completed</p>
+                            <p className="text-slate-500 text-sm font-medium">Assessments Completed</p>
                             <h3 className="text-2xl font-bold text-slate-800">{results.length}</h3>
                         </div>
                     </div>
@@ -140,7 +188,7 @@ export default function StudentDashboard() {
                             <FileText size={24} />
                         </div>
                         <div>
-                            <p className="text-slate-500 text-sm font-medium">Pending Exams</p>
+                            <p className="text-slate-500 text-sm font-medium">Pending Assessments</p>
                             <h3 className="text-2xl font-bold text-slate-800">{pendingExamsCount}</h3>
                         </div>
                     </div>
@@ -151,13 +199,13 @@ export default function StudentDashboard() {
                 {/* Available Assessments */}
                 <div>
                     <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        <Clock className="text-slate-400" size={20}/> Available Assessments
+                        <Clock className="text-slate-400" size={20} /> Available Assessments
                     </h2>
                     <div className="space-y-3">
                         {availableAssessments.length === 0 ? (
                             <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-300">
                                 <p className="text-slate-500">No active assessments pending.</p>
-                                <Link href="/exams" className="text-blue-600 hover:underline text-sm mt-2 inline-block">View all exams</Link>
+                                <Link href="/exams" className="text-blue-600 hover:underline text-sm mt-2 inline-block">View all assessments</Link>
                             </div>
                         ) : (
                             availableAssessments.map((exam: Exam) => {
@@ -165,12 +213,24 @@ export default function StudentDashboard() {
                                 const isCompleted = !!completedAttempt;
                                 const isScheduled = exam.is_scheduled;
                                 const scheduledTime = exam.scheduled_time;
+                                const isActiveNow = exam.is_active && !isScheduled;
 
                                 return (
-                                    <div key={exam.id} className={`group bg-white p-5 rounded-2xl border shadow-sm transition-all flex justify-between items-center ${isScheduled ? 'border-amber-200 bg-amber-50/30' : 'border-slate-200 hover:shadow-md'}`}>
+                                    <div key={exam.id} className={`group p-5 rounded-2xl border transition-all flex justify-between items-center 
+                                        ${isActiveNow
+                                            ? 'bg-indigo-50/50 border-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.15)] ring-1 ring-indigo-400/50'
+                                            : isScheduled
+                                                ? 'bg-amber-50/30 border-amber-200 shadow-sm'
+                                                : 'bg-white border-slate-200 shadow-sm hover:shadow-md'
+                                        }`}>
                                         <div>
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <h3 className="font-bold text-slate-800">{exam.title}</h3>
+                                                {isActiveNow && (
+                                                    <span className="flex items-center gap-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-full uppercase tracking-wider animate-pulse">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span> Live
+                                                    </span>
+                                                )}
                                                 {isScheduled && (
                                                     <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">
                                                         Scheduled
@@ -183,25 +243,25 @@ export default function StudentDashboard() {
                                                 )}
                                             </div>
                                             <div className="flex gap-3 mt-1 text-xs font-medium text-slate-500 flex-wrap">
-                                                <span className={`px-2 py-0.5 rounded uppercase font-bold text-[10px] tracking-wider ${
-                                                    exam.type === 'mock' ? 'bg-amber-100 text-amber-700' :
+                                                <span className={`px-2 py-0.5 rounded uppercase font-bold text-[10px] tracking-wider ${exam.type === 'mock' ? 'bg-amber-100 text-amber-700' :
                                                     exam.type === 'test' ? 'bg-purple-100 text-purple-700' :
-                                                    'bg-blue-100 text-blue-700'
-                                                }`}>
+                                                        'bg-blue-100 text-blue-700'
+                                                    }`}>
                                                     {exam.type}
                                                 </span>
                                                 <span className="bg-slate-100 px-2 py-0.5 rounded">{exam.duration_minutes} Mins</span>
                                                 {isScheduled && scheduledTime && (
-                                                    <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded">
-                                                        Starts: {new Date(scheduledTime).toLocaleString()}
+                                                    <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded flex items-center gap-1">
+                                                        <Clock size={12} />
+                                                        {new Date(scheduledTime).toLocaleDateString()} &bull; {new Date(scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(new Date(scheduledTime).getTime() + exam.duration_minutes * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                     </span>
                                                 )}
                                             </div>
                                         </div>
                                         {/* Button Logic */}
                                         {(isScheduled && (!scheduledTime || new Date() < new Date(scheduledTime))) ? (
-                                            <button 
-                                                disabled 
+                                            <button
+                                                disabled
                                                 className="px-4 py-2 rounded-full font-bold text-sm bg-slate-200 text-slate-500 cursor-not-allowed"
                                             >
                                                 Not Yet
@@ -224,7 +284,7 @@ export default function StudentDashboard() {
                 <div>
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                            <Award className="text-slate-400" size={20}/> Your Performance
+                            <Award className="text-slate-400" size={20} /> Your Performance
                         </h2>
                         <Link href="/results" className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
                             See all <ChevronRight size={16} />

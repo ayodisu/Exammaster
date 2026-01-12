@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import axios from 'axios';
 import { apiUrl, getAuthHeaders } from '@/config/api';
-import { Plus, Trash2, BookOpen, Clock, Users, ChevronRight, Power, Loader2 } from 'lucide-react';
+import { Plus, Trash2, BookOpen, Clock, Users, ChevronRight, Power, Loader2, AlertTriangle } from 'lucide-react';
 import { Exam } from '@/types';
 import CurrentTime from '@/components/CurrentTime';
 
@@ -14,7 +14,7 @@ export default function ExaminerDashboard() {
     const [exams, setExams] = useState<Exam[]>([]);
     const [loading, setLoading] = useState(true);
     const [togglingId, setTogglingId] = useState<number | null>(null);
-    const [successMsg, setSuccessMsg] = useState<{id: number, text: string} | null>(null);
+    const [successMsg, setSuccessMsg] = useState<{ id: number, text: string } | null>(null);
     const [alertState, setAlertState] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'error' | 'info' | 'warning'; onConfirm?: () => void; confirmText?: string; }>({
         isOpen: false,
         title: '',
@@ -31,12 +31,12 @@ export default function ExaminerDashboard() {
     const fetchExams = async () => {
         try {
             const headers = getAuthHeaders();
-            
+
             const [resExams, resStats] = await Promise.all([
                 axios.get(apiUrl('assessments'), { headers }),
                 axios.get(apiUrl('assessments/stats/overview'), { headers })
             ]);
-            
+
             setExams(resExams.data);
             setStats(resStats.data);
         } catch (error) {
@@ -54,7 +54,7 @@ export default function ExaminerDashboard() {
             await axios.put(apiUrl(`assessments/${id}/status`), {}, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            
+
             setExams(prev => prev.map(e => {
                 if (e.id === id) {
                     const newStatus = !e.is_active;
@@ -109,9 +109,23 @@ export default function ExaminerDashboard() {
         });
     };
 
+
+
+    // Filter due exams (not mock, active or scheduled for today)
+    const dueExams = exams.filter(exam => {
+        if (exam.type === 'mock') return false;
+        if (exam.is_active) return true;
+        if (exam.scheduled_at) {
+            const examDate = new Date(exam.scheduled_at);
+            const today = new Date();
+            return examDate.toDateString() === today.toDateString();
+        }
+        return false;
+    });
+
     return (
         <div className="p-8 min-h-screen bg-slate-50 text-slate-900 space-y-8 animate-in fade-in duration-500">
-             <AlertModal 
+            <AlertModal
                 isOpen={alertState.isOpen}
                 onClose={() => setAlertState(prev => ({ ...prev, isOpen: false }))}
                 title={alertState.title}
@@ -120,15 +134,46 @@ export default function ExaminerDashboard() {
                 onConfirm={alertState.onConfirm}
                 confirmText={alertState.confirmText}
             />
-             <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+
+            {/* Alert Slider CSS */}
+            <style jsx>{`
+                @keyframes marquee {
+                    0% { transform: translateX(100%); }
+                    100% { transform: translateX(-100%); }
+                }
+                .animate-marquee {
+                    animation: marquee 30s linear infinite;
+                }
+                .marquee-container:hover .animate-marquee {
+                    animation-play-state: paused;
+                }
+            `}</style>
+
+            {/* Due Assessment Slider */}
+            {dueExams.length > 0 && (
+                <div className="w-full bg-amber-50 border-l-4 border-amber-500 overflow-hidden relative py-3 shadow-sm mb-6 rounded-r-xl marquee-container group cursor-default">
+                    <div className="animate-marquee whitespace-nowrap flex gap-16 items-center text-amber-800 px-4 font-bold text-sm">
+                        {/* Repeat content to ensure smooth loop visualization if needed, or just list items */}
+                        {dueExams.map(exam => (
+                            <span key={exam.id} className="flex items-center gap-2">
+                                <AlertTriangle size={18} className="text-amber-600" />
+                                <span className="uppercase tracking-wide text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">Action Required</span>
+                                Assessment Due: <span className="text-amber-900 underline decoration-amber-500/50">{exam.title}</span> is {exam.is_active ? 'currently ACTIVE' : `scheduled for TODAY at ${new Date(exam.scheduled_at!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
-                     <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-bold uppercase tracking-wide">Examiner Portal</span>
+                    <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-bold uppercase tracking-wide">Examiner Portal</span>
                     <h1 className="text-3xl font-bold text-slate-800 mt-2">Dashboard</h1>
                     <p className="text-slate-500">Manage exams and view student performance.</p>
                 </div>
                 <div className="flex items-center gap-4">
                     <CurrentTime />
-                    <Link 
+                    <Link
                         href="/admin/exams/create?returnTo=dashboard"
                         className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-200 transition-all active:scale-95"
                     >
@@ -180,7 +225,7 @@ export default function ExaminerDashboard() {
                     <h2 className="text-lg font-bold text-slate-800">Managed Assessments</h2>
                     <span className="text-sm text-slate-500">{exams.length} total</span>
                 </div>
-                
+
                 <div className="divide-y divide-slate-100">
                     {loading ? (
                         <div className="p-12 text-center text-slate-400">Loading exams...</div>
@@ -201,8 +246,22 @@ export default function ExaminerDashboard() {
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-slate-800">{exam.title}</h3>
-                                        <div className="flex gap-2 mt-1 text-xs text-slate-500">
+                                        <div className="flex gap-2 mt-1 text-xs text-slate-500 items-center">
                                             <span>{exam.duration_minutes} mins</span>
+                                            {exam.scheduled_at && (
+                                                <>
+                                                    <span>•</span>
+                                                    <span className="flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
+                                                        <Clock size={10} />
+                                                        {new Date(exam.scheduled_at).toLocaleString(undefined, {
+                                                            month: 'short',
+                                                            day: 'numeric',
+                                                            hour: '2-digit',
+                                                            minute: '2-digit'
+                                                        })}
+                                                    </span>
+                                                </>
+                                            )}
                                             <span>•</span>
                                             <span className="font-medium text-emerald-600">{exam.is_published ? 'Published' : 'Draft'}</span>
                                         </div>
@@ -221,7 +280,7 @@ export default function ExaminerDashboard() {
                                                 <div className="text-slate-400">Avg</div>
                                             </div>
                                             <div className="w-px bg-slate-200"></div>
-                                             <div className="text-center px-2">
+                                            <div className="text-center px-2">
                                                 <div className="font-bold text-emerald-600">{exam.stats.pass_rate}</div>
                                                 <div className="text-slate-400">Pass Rate</div>
                                             </div>
@@ -229,7 +288,7 @@ export default function ExaminerDashboard() {
                                     )}
                                     <div className="flex items-center gap-4">
                                         <span className="text-xs text-slate-400 hidden sm:inline">ID: {exam.id}</span>
-                                        
+
                                         {/* Success Message */}
                                         {successMsg?.id === exam.id && (
                                             <span className="text-xs font-bold text-emerald-600 animate-in fade-in slide-in-from-right-2">
@@ -237,14 +296,13 @@ export default function ExaminerDashboard() {
                                             </span>
                                         )}
 
-                                        <button 
+                                        <button
                                             onClick={() => handleToggleStatus(exam.id)}
                                             disabled={togglingId === exam.id}
-                                            className={`p-2 rounded-lg transition-colors ${
-                                                exam.is_active 
-                                                    ? 'text-emerald-600 hover:bg-emerald-50' 
-                                                    : 'text-slate-400 hover:bg-slate-100'
-                                            } ${togglingId === exam.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            className={`p-2 rounded-lg transition-colors ${exam.is_active
+                                                ? 'text-emerald-600 hover:bg-emerald-50'
+                                                : 'text-slate-400 hover:bg-slate-100'
+                                                } ${togglingId === exam.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             title={exam.is_active ? "End Assessment" : "Activate Assessment"}
                                         >
                                             {togglingId === exam.id ? (
@@ -253,7 +311,7 @@ export default function ExaminerDashboard() {
                                                 <Power size={18} />
                                             )}
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={() => handleDeleteExam(exam.id)}
                                             className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                             title="Delete Assessment"
