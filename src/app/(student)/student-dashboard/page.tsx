@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { apiUrl, getAuthHeaders } from '@/config/api';
+import { STORAGE_KEYS } from '@/config/constants';
 import { Exam, User, Attempt } from '@/types';
 import Link from 'next/link';
 import { GraduationCap, Clock, Award, FileText, ChevronRight } from 'lucide-react';
@@ -15,19 +17,19 @@ export default function StudentDashboard() {
     const router = useRouter();
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
         if (!token) {
-            router.push('/login');
+            router.push('/');
             return;
         }
-        const headers = { 'Authorization': `Bearer ${token}` };
+        const headers = getAuthHeaders();
 
         const fetchInitialData = async () => {
             try {
                 const [resExams, resUser, resAttempts] = await Promise.all([
-                    axios.get('http://localhost:8000/api/exams', { headers }),
-                    axios.get('http://localhost:8000/api/user', { headers }),
-                    axios.get('http://localhost:8000/api/attempts', { headers })
+                    axios.get(apiUrl('exams'), { headers }),
+                    axios.get(apiUrl('user'), { headers }),
+                    axios.get(apiUrl('attempts'), { headers })
                 ]);
                 
                 setExams(resExams.data);
@@ -35,18 +37,21 @@ export default function StudentDashboard() {
                 setResults(resAttempts.data);
             } catch (err) {
                 console.error("Initial load failed", err);
-                router.push('/login');
+                router.push('/');
             }
         };
 
         const fetchUpdates = async () => {
             try {
-                const res = await axios.get('http://localhost:8000/api/exams', { headers });
+                const res = await axios.get(apiUrl('exams'), { headers });
                 setExams(res.data);
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error("Polling failed", err);
-                if (err.response?.status === 401) {
-                    router.push('/login');
+                if (err instanceof Error && 'response' in err) {
+                    const axiosErr = err as { response?: { status?: number } };
+                    if (axiosErr.response?.status === 401) {
+                        router.push('/');
+                    }
                 }
             }
         };
@@ -69,14 +74,16 @@ export default function StudentDashboard() {
     const availableAssessments = exams.filter(exam => {
         const hasTaken = results.some(r => r.exam_id === exam.id);
         
+        // If already taken, only allow retaking if it is a mock exam AND it is active
+        if (hasTaken) {
+            return exam.type === 'mock' && exam.is_active;
+        }
+        
         // Show scheduled (future) exams
-        if ((exam as any).is_scheduled) return true;
+        if (exam.is_scheduled) return true;
         
-        // Show active exams that haven't been taken
-        if (exam.is_active && !hasTaken) return true;
-        
-        // Show mock exams even if taken (retakeable)
-        if (exam.is_active && exam.type === 'mock') return true;
+        // Show active exams
+        if (exam.is_active) return true;
         
         return false;
     });
@@ -156,9 +163,8 @@ export default function StudentDashboard() {
                             availableAssessments.map((exam: Exam) => {
                                 const completedAttempt = results.find(r => r.exam_id === exam.id);
                                 const isCompleted = !!completedAttempt;
-                                const isScheduled = (exam as any).is_scheduled;
-                                const canTake = (exam as any).can_take;
-                                const scheduledTime = (exam as any).scheduled_time;
+                                const isScheduled = exam.is_scheduled;
+                                const scheduledTime = exam.scheduled_time;
 
                                 return (
                                     <div key={exam.id} className={`group bg-white p-5 rounded-2xl border shadow-sm transition-all flex justify-between items-center ${isScheduled ? 'border-amber-200 bg-amber-50/30' : 'border-slate-200 hover:shadow-md'}`}>
@@ -193,7 +199,7 @@ export default function StudentDashboard() {
                                             </div>
                                         </div>
                                         {/* Button Logic */}
-                                        {isScheduled ? (
+                                        {(isScheduled && (!scheduledTime || new Date() < new Date(scheduledTime))) ? (
                                             <button 
                                                 disabled 
                                                 className="px-4 py-2 rounded-full font-bold text-sm bg-slate-200 text-slate-500 cursor-not-allowed"

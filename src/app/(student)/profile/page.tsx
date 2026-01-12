@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { apiUrl, getAuthHeaders } from '@/config/api';
 import { User as UserType } from '@/types';
 import { Loader2, User, Mail, Shield, Phone, MapPin } from 'lucide-react';
 
@@ -12,8 +13,8 @@ export default function ProfilePage() {
     useEffect(() => {
         const fetchUser = async () => {
              try {
-                const res = await axios.get('http://localhost:8000/api/user', {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                const res = await axios.get(apiUrl('user'), {
+                    headers: getAuthHeaders()
                 });
                 setUser(res.data);
             } catch {

@@ -3,9 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
+import { apiUrl, getAuthHeaders } from '@/config/api';
 import { Exam, Attempt } from '@/types';
-import { ArrowLeft, Clock, Users, Calendar, Power, Download, Search, Loader2, CheckCircle, XCircle } from 'lucide-react';
-import Link from 'next/link';
+import { ArrowLeft, Clock, Users, Calendar, Power, Search, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import AlertModal from '@/components/ui/AlertModal';
 
 interface ExamDetail extends Exam {
@@ -27,36 +27,34 @@ export default function ExamDetailPage() {
     });
 
     useEffect(() => {
+        const fetchExamDetails = async () => {
+            try {
+                const headers = getAuthHeaders();
+                
+                const [resExam, resAttempts] = await Promise.all([
+                    axios.get(apiUrl(`exams/${params.id}`), { headers }),
+                    axios.get(apiUrl(`exams/${params.id}/attempts`), { headers })
+                ]);
+
+                setExam(resExam.data);
+                setAttempts(resAttempts.data);
+            } catch (error) {
+                console.error("Failed to load details", error);
+                setAlertState({ isOpen: true, title: 'Error', message: 'Failed to load exam details.', type: 'error' });
+            } finally {
+                setLoading(false);
+            }
+        };
+
         if (params.id) fetchExamDetails();
     }, [params.id]);
-
-    const fetchExamDetails = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const headers = { 'Authorization': `Bearer ${token}` };
-            
-            const [resExam, resAttempts] = await Promise.all([
-                axios.get(`http://localhost:8000/api/exams/${params.id}`, { headers }),
-                axios.get(`http://localhost:8000/api/exams/${params.id}/attempts`, { headers })
-            ]);
-
-            setExam(resExam.data);
-            setAttempts(resAttempts.data);
-        } catch (error) {
-            console.error("Failed to load details", error);
-            setAlertState({ isOpen: true, title: 'Error', message: 'Failed to load exam details.', type: 'error' });
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleToggleStatus = async () => {
         if (!exam) return;
         setToggling(true);
         try {
-            const token = localStorage.getItem('token');
-            await axios.put(`http://localhost:8000/api/exams/${exam.id}/status`, {}, {
-                headers: { 'Authorization': `Bearer ${token}` }
+            await axios.put(apiUrl(`exams/${exam.id}/status`), {}, {
+                headers: getAuthHeaders()
             });
             
             setExam(prev => prev ? ({ ...prev, is_active: !prev.is_active }) : null);
@@ -66,8 +64,12 @@ export default function ExamDetailPage() {
                 message: `Exam ${!exam.is_active ? 'activated' : 'ended'} successfully.`, 
                 type: 'success' 
             });
-        } catch (error: any) {
-             const msg = error.response?.data?.message || "Failed to update status.";
+        } catch (error: unknown) {
+             let msg = "Failed to update status.";
+             if (error && typeof error === 'object' && 'response' in error) {
+                 const axiosErr = error as { response?: { data?: { message?: string } } };
+                 msg = axiosErr.response?.data?.message || msg;
+             }
              setAlertState({ isOpen: true, title: 'Update Failed', message: msg, type: 'error' });
         } finally {
             setToggling(false);
@@ -86,7 +88,6 @@ export default function ExamDetailPage() {
     return (
         <div className="p-8 min-h-screen bg-slate-50 text-slate-900 space-y-8 animate-in fade-in duration-500">
             <AlertModal 
-                isOpen={alertState.isOpen} 
                 onClose={() => setAlertState(prev => ({...prev, isOpen: false}))}
                 {...alertState}
             />

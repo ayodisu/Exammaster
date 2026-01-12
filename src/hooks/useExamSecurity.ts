@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import axios from 'axios';
+import { apiUrl, getAuthHeaders } from '@/config/api';
 
 interface UseExamSecurityProps {
     attemptId: number | null;
@@ -35,14 +36,12 @@ export function useExamSecurity({ attemptId, onViolation }: UseExamSecurityProps
 
         const logViolation = async (type: string, details: string) => {
             try {
-                await axios.post('http://localhost:8000/api/violations', {
+                await axios.post(apiUrl('violations'), {
                     attempt_id: attemptId,
                     type,
                     details
                 }, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
+                    headers: getAuthHeaders()
                 });
             } catch (error) {
                 console.error('Failed to log violation', error);

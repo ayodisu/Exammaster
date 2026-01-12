@@ -1,10 +1,15 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import Footer from './Footer';
-import { X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { X } from 'lucide-react';
 import axios from 'axios';
+import { apiUrl, getAuthHeaders } from '@/config/api';
+import { User } from '@/types';
+import { STORAGE_KEYS, ROLES } from '@/config/constants';
 
 interface MenuItem {
     label: string;
@@ -26,62 +31,66 @@ export default function DashboardLayout({ children, menuItems, roleLabel }: Dash
 
     useEffect(() => {
         const verifyRole = async () => {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
             if (!token) {
-                router.push('/login');
+                router.push('/');
                 return;
             }
 
             try {
                 // Safe LocalStorage Check
-                const storedUser = localStorage.getItem('user');
-                let user: any = null;
+                const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
+                let user: User | null = null;
                 
                 if (storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
                     try {
                         user = JSON.parse(storedUser);
                     } catch (e) {
                          console.error("Failed to parse user from storage", e);
-                         localStorage.removeItem('user'); // Clear bad data
+                         localStorage.removeItem(STORAGE_KEYS.USER); // Clear bad data
                     }
                 }
 
                 if (user && user.role) {
-                    if (user.role !== roleLabel) {
-                        console.warn(`Role mismatch: Expected ${roleLabel}, got ${user.role}`);
-                        if (user.role === 'student' || user.role === 'candidate') {
+                    const effectiveRole = (user.role === 'student' || user.role === ROLES.CANDIDATE) ? ROLES.CANDIDATE : user.role;
+                    
+                    if (effectiveRole !== roleLabel) {
+                        console.warn(`Role mismatch: Expected ${roleLabel}, got ${effectiveRole} (original: ${user.role})`);
+                        if (user.role === ROLES.CANDIDATE) {
                              router.push('/student-dashboard'); 
-                        } else if (user.role === 'examiner') {
+                        } else if (user.role === ROLES.EXAMINER) {
                              router.push('/dashboard'); 
                         } else {
-                             router.push('/login');
+                             router.push('/');
                         }
                         return;
                     }
                 } else {
                     // Fallback: Fetch user from API if local storage is missing user data
                     try {
-                        const res = await axios.get('http://localhost:8000/api/user', {
-                            headers: { 'Authorization': `Bearer ${token}` }
+                        const res = await axios.get(apiUrl('user'), {
+                            headers: getAuthHeaders()
                         });
                         const remoteUser = res.data;
-                        localStorage.setItem('user', JSON.stringify(remoteUser));
+                        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(remoteUser));
                         
                         // Re-check role
-                         if (remoteUser.role !== roleLabel) {
-                            if (remoteUser.role === 'student' || remoteUser.role === 'candidate') {
+                        const effectiveRemoteRole = (remoteUser.role === 'student' || remoteUser.role === ROLES.CANDIDATE) ? ROLES.CANDIDATE : remoteUser.role;
+
+                         if (effectiveRemoteRole !== roleLabel) {
+                            if (remoteUser.role === ROLES.CANDIDATE) {
                                  router.push('/student-dashboard'); 
-                            } else if (remoteUser.role === 'examiner') {
+                            } else if (remoteUser.role === ROLES.EXAMINER) {
                                  router.push('/dashboard'); 
                             } else {
-                                 router.push('/login');
+                                 router.push('/');
                             }
                             return;
                          }
                     } catch (err) {
                         console.error("Failed to fetch user profile", err);
-                         localStorage.removeItem('token');
-                         router.push('/login');
+                         localStorage.removeItem(STORAGE_KEYS.TOKEN);
+                         router.push('/');
                          return;
                     }
                 }

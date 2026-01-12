@@ -6,6 +6,8 @@ import { LayoutDashboard, LogOut } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { User } from '@/types';
 import axios from 'axios';
+import { apiUrl, APP_NAME, getAuthHeaders } from '@/config/api';
+import { STORAGE_KEYS } from '@/config/constants';
 
 export default function Navigation() {
     const router = useRouter();
@@ -18,8 +20,8 @@ export default function Navigation() {
         if (isHidden) return; // Don't fetch if hidden
         const fetchUser = async () => {
              try {
-                const res = await axios.get('http://localhost:8000/api/user', {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                const res = await axios.get(apiUrl('user'), {
+                    headers: getAuthHeaders()
                 });
                 setUser(res.data);
             } catch {
@@ -31,13 +33,13 @@ export default function Navigation() {
 
     const handleLogout = async () => {
         try {
-            await axios.post('http://localhost:8000/api/logout', {}, {
-                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            await axios.post(apiUrl('logout'), {}, {
+                 headers: getAuthHeaders()
             });
         } catch (e) {
             console.error(e);
         }
-        localStorage.removeItem('token');
+        localStorage.removeItem(STORAGE_KEYS.TOKEN);
         router.push('/');
     };
 
@@ -55,7 +57,7 @@ export default function Navigation() {
                         <LayoutDashboard size={20} />
                     </div>
                     <h1 className="text-xl font-bold text-slate-800">
-                        ExamMaster <span className={`text-xs px-2 py-0.5 rounded-full ${isExaminer ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'}`}>{isExaminer ? 'Examiner' : 'Candidate'}</span>
+                        {APP_NAME} <span className={`text-xs px-2 py-0.5 rounded-full ${isExaminer ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'}`}>{isExaminer ? 'Examiner' : 'Candidate'}</span>
                     </h1>
                 </Link>
                 

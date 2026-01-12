@@ -4,7 +4,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Question, Attempt } from '@/types';
 import { useExamSecurity } from '@/hooks/useExamSecurity';
 import axios from 'axios';
-import { Loader2, CheckCircle2, XCircle, Clock, Monitor, ChevronLeft, ChevronRight, Hash, Send } from 'lucide-react';
+import { apiUrl, getAuthHeaders } from '@/config/api';
+import { STORAGE_KEYS } from '@/config/constants';
+import { Loader2, CheckCircle2, Clock, Monitor, ChevronLeft, ChevronRight, Hash, Send } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import AlertModal from '@/components/ui/AlertModal';
 
@@ -58,29 +60,14 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, []);
 
-    // Timer Logic
-    useEffect(() => {
-        const timer = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 0) {
-                    clearInterval(timer);
-                    handleSubmit();
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-        return () => clearInterval(timer);
-    }, []);
-
     // Auto-submit on page close/navigate away
     useEffect(() => {
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
             // Try to submit using sendBeacon for reliability
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
             if (token && !submissionResult) {
                 navigator.sendBeacon(
-                    `http://localhost:8000/api/attempts/${attempt.id}/finish`,
+                    apiUrl(`attempts/${attempt.id}/finish`),
                     JSON.stringify({})
                 );
             }
@@ -92,10 +79,10 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
 
         const handlePageHide = () => {
             // Fallback for mobile browsers
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
             if (token && !submissionResult) {
                 navigator.sendBeacon(
-                    `http://localhost:8000/api/attempts/${attempt.id}/finish`,
+                    apiUrl(`attempts/${attempt.id}/finish`),
                     JSON.stringify({})
                 );
             }
@@ -104,10 +91,10 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
         const handleVisibilityChange = () => {
             // If page becomes hidden (tab closed, switched away for too long), submit
             if (document.visibilityState === 'hidden' && !submissionResult) {
-                const token = localStorage.getItem('token');
+                const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
                 if (token) {
                     navigator.sendBeacon(
-                        `http://localhost:8000/api/attempts/${attempt.id}/finish`,
+                        apiUrl(`attempts/${attempt.id}/finish`),
                         JSON.stringify({})
                     );
                 }
@@ -132,12 +119,12 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
         const currentQ = initialQuestions[currentQuestionIndex];
         if (currentAns[currentQ.id]) {
              try {
-                await axios.post(`http://localhost:8000/api/attempts/${attempt.id}/save`, {
+                await axios.post(apiUrl(`attempts/${attempt.id}/save`), {
                     question_id: currentQ.id,
                     student_answer: currentAns[currentQ.id],
                     time_spent_seconds: 0
                 }, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    headers: getAuthHeaders()
                 });
             } catch (err) {
                 // Silently fail for background saves to avoid interrupting user
@@ -164,8 +151,8 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
         setIsSubmitting(true);
         try {
             await saveProgress();
-            const res = await axios.post(`http://localhost:8000/api/attempts/${attempt.id}/finish`, {}, {
-                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            const res = await axios.post(apiUrl(`attempts/${attempt.id}/finish`), {}, {
+                 headers: getAuthHeaders()
             });
             setSubmissionResult({ score: res.data.score || 0, passed: res.data.passed ?? true });
             setShowResultModal(true);
@@ -185,7 +172,22 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
                 type: 'error'
             });
         }
-    }, [attempt.id, saveProgress]);
+    }, [attempt.id, saveProgress, router]);
+
+    // Timer Logic
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setTimeLeft((prev) => {
+                if (prev <= 0) {
+                    clearInterval(timer);
+                    handleSubmit();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [handleSubmit]);
 
     const handleAnswerSelect = (optionId: string | number) => {
         setAnswers(prev => ({ ...prev, [initialQuestions[currentQuestionIndex].id]: String(optionId) }));

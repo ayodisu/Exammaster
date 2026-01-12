@@ -1,8 +1,12 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import { Menu, Bell, User, LogOut, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import axios from 'axios';
+import { apiUrl, APP_NAME, getAuthHeaders } from '@/config/api';
 import { usePathname, useRouter } from 'next/navigation';
+import { STORAGE_KEYS } from '@/config/constants';
 
 interface HeaderProps {
     roleLabel: string;
@@ -13,7 +17,7 @@ interface HeaderProps {
 export default function Header({ roleLabel, onMenuClick, collapsed }: HeaderProps) {
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [userName, setUserName] = useState('');
-    const [notifications, setNotifications] = useState(0);
+    const [notifications] = useState(1);
     const router = useRouter();
     const pathname = usePathname();
 
@@ -24,18 +28,18 @@ export default function Header({ roleLabel, onMenuClick, collapsed }: HeaderProp
         if (pathname.startsWith('/exam/')) return 'Assessment';
         if (pathname.includes('/dashboard')) return 'Overview';
         if (pathname.includes('/students')) return 'Student Management';
-        return 'ExamMaster CBT';
+        return APP_NAME;
     };
 
     useEffect(() => {
         // Mock Notification Check
-        setNotifications(1); 
+        // setNotifications(1); 
         
         // Fetch User Name
         const fetchUser = async () => {
-             try {
-                const res = await axios.get('http://localhost:8000/api/user', {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            try {
+                const res = await axios.get(apiUrl('user'), {
+                    headers: getAuthHeaders()
                 });
                 if (res.data?.first_name) {
                     setUserName(res.data.first_name);
@@ -51,13 +55,13 @@ export default function Header({ roleLabel, onMenuClick, collapsed }: HeaderProp
 
     const handleLogout = async () => {
         try {
-            await axios.post('http://localhost:8000/api/logout', {}, {
-                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            await axios.post(apiUrl('logout'), {}, {
+                 headers: getAuthHeaders()
             });
         } catch (e) {
             console.error(e);
         }
-        localStorage.removeItem('token');
+        localStorage.removeItem(STORAGE_KEYS.TOKEN);
         router.push('/');
     };
 
@@ -97,7 +101,7 @@ export default function Header({ roleLabel, onMenuClick, collapsed }: HeaderProp
                             {roleLabel.charAt(0).toUpperCase()}
                         </div>
                         <div className="hidden sm:block text-left">
-                            <p className="text-sm font-bold text-slate-700 leading-none">My Account</p>
+                            <p className="text-sm font-bold text-slate-700 leading-none">{userName || 'My Account'}</p>
                             <span className="text-xs text-slate-400 capitalize">{roleLabel}</span>
                         </div>
                         <ChevronDown size={16} className={`text-slate-400 transition-transform ${isProfileOpen ? 'rotate-180' : ''}`} />

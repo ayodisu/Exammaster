@@ -5,6 +5,7 @@ import Calendar, { CalendarEvent } from '@/components/Calendar';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import axios from 'axios';
+import { apiUrl, getAuthHeaders } from '@/config/api';
 import { Exam } from '@/types';
 import { useRouter } from 'next/navigation';
 
@@ -15,9 +16,8 @@ export default function ExaminerCalendarPage() {
     useEffect(() => {
         const fetchExams = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const res = await axios.get('http://localhost:8000/api/exams', {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                const res = await axios.get(apiUrl('exams'), {
+                    headers: getAuthHeaders()
                 });
                 
                 const loadedExams: Exam[] = res.data;
@@ -41,7 +41,7 @@ export default function ExaminerCalendarPage() {
 
     const handleAddEvent = (date: Date) => {
         const dateStr = date.toISOString().split('T')[0];
-        router.push(`/admin/exams/create?date=${dateStr}`);
+        router.push(`/admin/exams/create?date=${dateStr}&returnTo=calendar`);
     };
 
     const handleViewEvent = (eventId: number | string) => {
@@ -56,7 +56,7 @@ export default function ExaminerCalendarPage() {
                     <p className="text-slate-500 mt-2">View and manage exam dates.</p>
                 </div>
                 <Link 
-                    href="/admin/exams/create"
+                    href="/admin/exams/create?returnTo=calendar"
                     className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-200 transition-all active:scale-95"
                 >
                     <Plus size={20} /> Schedule Exam

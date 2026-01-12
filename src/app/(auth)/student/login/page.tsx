@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import axios from 'axios';
+import { apiUrl } from '@/config/api';
+import { STORAGE_KEYS } from '@/config/constants';
 import { useRouter } from 'next/navigation';
 import { Loader2, LogIn, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -20,12 +22,12 @@ export default function CandidateLoginPage() {
         setError('');
 
         try {
-            const res = await axios.post('http://localhost:8000/api/candidate/login', {
+            const res = await axios.post(apiUrl('candidate/login'), {
                 email,
                 password
             });
-            localStorage.setItem('token', res.data.token);
-            localStorage.setItem('user', JSON.stringify(res.data.user));
+            localStorage.setItem(STORAGE_KEYS.TOKEN, res.data.token);
+            localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(res.data.user));
             router.push('/student-dashboard');
         } catch (err) {
             if (axios.isAxiosError(err) && err.response) {

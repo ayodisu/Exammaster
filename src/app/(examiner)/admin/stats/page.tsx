@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { apiUrl, getAuthHeaders } from '@/config/api';
 import { Loader2 } from 'lucide-react';
 import { Exam } from '@/types';
 
@@ -12,8 +13,8 @@ export default function ExaminerStatsPage() {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const res = await axios.get('http://localhost:8000/api/exams', {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                const res = await axios.get(apiUrl('exams'), {
+                    headers: getAuthHeaders()
                 });
                 setExams(res.data);
             } catch (err) {
@@ -63,7 +64,7 @@ export default function ExaminerStatsPage() {
                                 <td className="px-6 py-4 font-bold text-indigo-600">{exam.stats?.avg_score || 0}%</td>
                                 <td className="px-6 py-4">
                                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                                        (exam.stats?.pass_rate || 0) >= 50 
+                                        Number(exam.stats?.pass_rate || 0) >= 50 
                                             ? 'bg-emerald-100 text-emerald-700' 
                                             : 'bg-red-100 text-red-700'
                                     }`}>

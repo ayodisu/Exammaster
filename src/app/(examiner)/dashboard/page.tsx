@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import axios from 'axios';
+import { apiUrl, getAuthHeaders } from '@/config/api';
 import { Plus, Trash2, BookOpen, Clock, Users, ChevronRight, Power, Loader2 } from 'lucide-react';
 import { Exam } from '@/types';
 import CurrentTime from '@/components/CurrentTime';
@@ -29,12 +30,11 @@ export default function ExaminerDashboard() {
 
     const fetchExams = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const headers = { 'Authorization': `Bearer ${token}` };
+            const headers = getAuthHeaders();
             
             const [resExams, resStats] = await Promise.all([
-                axios.get('http://localhost:8000/api/exams', { headers }),
-                axios.get('http://localhost:8000/api/exams/stats/overview', { headers })
+                axios.get(apiUrl('exams'), { headers }),
+                axios.get(apiUrl('exams/stats/overview'), { headers })
             ]);
             
             setExams(resExams.data);
@@ -51,7 +51,7 @@ export default function ExaminerDashboard() {
         setTogglingId(id);
         try {
             const token = localStorage.getItem('token');
-            await axios.put(`http://localhost:8000/api/exams/${id}/status`, {}, {
+            await axios.put(apiUrl(`exams/${id}/status`), {}, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             
@@ -64,9 +64,13 @@ export default function ExaminerDashboard() {
                 }
                 return e;
             }));
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Failed to update status', error);
-            const msg = error.response?.data?.message || "Failed to update exam status. Please try again.";
+            let msg = "Failed to update exam status. Please try again.";
+            if (error && typeof error === 'object' && 'response' in error) {
+                const axiosErr = error as { response?: { data?: { message?: string } } };
+                msg = axiosErr.response?.data?.message || msg;
+            }
             setAlertState({
                 isOpen: true,
                 title: 'Update Failed',
@@ -88,14 +92,17 @@ export default function ExaminerDashboard() {
             onConfirm: async () => {
                 setAlertState(prev => ({ ...prev, isOpen: false }));
                 try {
-                    const token = localStorage.getItem('token');
-                    await axios.delete(`http://localhost:8000/api/exams/${id}`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
+                    await axios.delete(apiUrl(`exams/${id}`), {
+                        headers: getAuthHeaders()
                     });
                     setExams(prev => prev.filter(e => e.id !== id));
                     setAlertState({ isOpen: true, title: 'Deleted', message: 'Exam deleted successfully.', type: 'success' });
-                } catch (error: any) {
-                    const msg = error.response?.data?.message || "Failed to delete exam.";
+                } catch (error: unknown) {
+                    let msg = "Failed to delete exam.";
+                    if (error && typeof error === 'object' && 'response' in error) {
+                        const axiosErr = error as { response?: { data?: { message?: string } } };
+                        msg = axiosErr.response?.data?.message || msg;
+                    }
                     setAlertState({ isOpen: true, title: 'Error', message: msg, type: 'error' });
                 }
             }

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { apiUrl, getAuthHeaders } from '@/config/api';
 import { User, Attempt } from '@/types';
 import { Search, User as UserIcon, Mail, X, BookOpen, TrendingUp, Award, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
@@ -23,8 +24,8 @@ export default function StudentsPage() {
     useEffect(() => {
         const fetchStudents = async () => {
             try {
-                const res = await axios.get('http://localhost:8000/api/students', {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                const res = await axios.get(apiUrl('students'), {
+                    headers: getAuthHeaders()
                 });
                 setStudents(res.data);
             } catch (error) {
@@ -43,7 +44,7 @@ export default function StudentsPage() {
         setStudentAttempts([]);
 
         try {
-            const res = await axios.get(`http://localhost:8000/api/students/${student.id}/attempts`, {
+            const res = await axios.get(apiUrl(`students/${student.id}/attempts`), {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
             });
             setStudentAttempts(res.data);

@@ -2,9 +2,11 @@
 
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { apiUrl, getAuthHeaders } from '@/config/api';
 import { Exam, User, Attempt } from '@/types';
+import { STORAGE_KEYS } from '@/config/constants';
 import Link from 'next/link';
-import { GraduationCap, Clock, Award, FileText } from 'lucide-react';
+import { Clock, Award } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CurrentTime from '@/components/CurrentTime';
 
@@ -15,19 +17,19 @@ export default function StudentExamsPage() {
     const router = useRouter();
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
         if (!token) {
-            router.push('/login');
+            router.push('/');
             return;
         }
-        const headers = { 'Authorization': `Bearer ${token}` };
+        const headers = getAuthHeaders();
 
         const fetchInitialData = async () => {
             try {
                 const [resExams, resUser, resAttempts] = await Promise.all([
-                    axios.get('http://localhost:8000/api/exams', { headers }),
-                    axios.get('http://localhost:8000/api/user', { headers }),
-                    axios.get('http://localhost:8000/api/attempts', { headers })
+                    axios.get(apiUrl('exams'), { headers }),
+                    axios.get(apiUrl('user'), { headers }),
+                    axios.get(apiUrl('attempts'), { headers })
                 ]);
                 
                 setExams(resExams.data);
@@ -35,18 +37,21 @@ export default function StudentExamsPage() {
                 setResults(resAttempts.data);
             } catch (err) {
                 console.error("Initial load failed", err);
-                router.push('/login');
+                router.push('/');
             }
         };
 
         const fetchUpdates = async () => {
             try {
-                const res = await axios.get('http://localhost:8000/api/exams', { headers });
+                const res = await axios.get(apiUrl('exams'), { headers });
                 setExams(res.data);
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error("Polling failed", err);
-                if (err.response?.status === 401) {
-                    router.push('/login');
+                if (err instanceof Error && 'response' in err) {
+                    const axiosErr = err as { response?: { status?: number } };
+                    if (axiosErr.response?.status === 401) {
+                        router.push('/');
+                    }
                 }
             }
         };

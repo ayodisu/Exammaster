@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Calendar, { CalendarEvent } from '@/components/Calendar';
 import axios from 'axios';
+import { apiUrl, getAuthHeaders } from '@/config/api';
 import { Exam } from '@/types';
 
 export default function CalendarPage() {
@@ -13,9 +14,8 @@ export default function CalendarPage() {
     useEffect(() => {
         const fetchExams = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const res = await axios.get('http://localhost:8000/api/exams', {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                const res = await axios.get(apiUrl('exams'), {
+                    headers: getAuthHeaders()
                 });
                 
                 const loadedExams: Exam[] = res.data;

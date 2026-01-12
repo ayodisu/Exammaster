@@ -3,6 +3,7 @@
 import React from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { BookOpen, FileText, BarChart3, Clock, Home, Calendar } from 'lucide-react';
+import { ROLES } from '@/config/constants';
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
     const menuItems = [
@@ -14,7 +15,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     ];
 
     return (
-        <DashboardLayout menuItems={menuItems} roleLabel="student">
+        <DashboardLayout menuItems={menuItems} roleLabel={ROLES.CANDIDATE}>
             {children}
         </DashboardLayout>
     );

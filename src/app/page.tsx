@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { ArrowRight, CheckCircle2, Shield, Zap, Globe, Cpu, BarChart3, Lock } from 'lucide-react';
+import { APP_NAME } from '@/config/api';
 
 export default function Home() {
   return (
@@ -15,7 +16,7 @@ export default function Home() {
                <Cpu className="text-white w-6 h-6" />
             </div>
             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
-              ExamMaster
+              {APP_NAME}
             </span>
           </div>
           <div className="flex items-center gap-4">
@@ -164,7 +165,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-2">
                 <Cpu className="text-indigo-500 w-5 h-5" />
-                <span className="text-white font-bold text-lg">ExamMaster</span>
+                <span className="text-white font-bold text-lg">{APP_NAME}</span>
             </div>
             <div className="flex gap-8 text-sm">
                 <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
@@ -172,7 +173,7 @@ export default function Home() {
                 <a href="#" className="hover:text-white transition-colors">Support</a>
             </div>
             <div className="text-sm opacity-50">
-                © {new Date().getFullYear()} ExamMaster Inc.
+                © {new Date().getFullYear()} {APP_NAME} Inc.
             </div>
         </div>
       </footer>

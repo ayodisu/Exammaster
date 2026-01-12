@@ -7,7 +7,7 @@ export interface User {
     phone_number?: string;
     address?: string;
     email: string;
-    role: 'student' | 'examiner';
+    role: 'student' | 'examiner' | 'candidate';
 }
 
 export interface Question {
@@ -27,11 +27,26 @@ export interface Exam {
     is_active: boolean;
     questions?: Question[];
     is_published?: boolean;
+    created_at?: string;
+    updated_at?: string;
+    // Dynamic properties added by API
+    is_scheduled?: boolean;
+    can_take?: boolean;
+    scheduled_time?: string;
     stats?: {
         attempts: number;
         avg_score: number;
         pass_rate: string | number;
     };
+}
+
+export interface Student {
+    id: number;
+    name?: string;
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+    exam_number?: string;
 }
 
 export interface Attempt {
@@ -42,5 +57,8 @@ export interface Attempt {
     score?: number;
     started_at: string;
     submitted_at?: string;
+    created_at?: string;
     exam?: Exam;
+    student?: Student;
 }
+

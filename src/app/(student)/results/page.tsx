@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { apiUrl, getAuthHeaders } from '@/config/api';
 import { Attempt } from '@/types';
 import { Loader2, AlertCircle, FileText, CheckCircle, XCircle } from 'lucide-react';
 
@@ -13,8 +14,8 @@ export default function ResultsPage() {
     useEffect(() => {
         const fetchAttempts = async () => {
             try {
-                const res = await axios.get('http://localhost:8000/api/attempts', { // Use verified endpoint
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                const res = await axios.get(apiUrl('attempts'), { // Use verified endpoint
+                    headers: getAuthHeaders()
                 });
                 setAttempts(res.data);
             } catch (err) {

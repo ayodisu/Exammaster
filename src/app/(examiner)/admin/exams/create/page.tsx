@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import axios from 'axios';
+import { apiUrl, getAuthHeaders } from '@/config/api';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, BookOpen, BrainCircuit, Layers, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -13,6 +14,7 @@ export default function CreateExamPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const prefilledDate = searchParams.get('date');
+    const returnTo = searchParams.get('returnTo');
 
     const [topic, setTopic] = useState('');
     const [examType, setExamType] = useState<'exam' | 'mock' | 'test'>('exam');
@@ -53,8 +55,8 @@ export default function CreateExamPage() {
             };
 
             // Save to Backend
-            await axios.post('http://localhost:8000/api/exams', newExam, {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            await axios.post(apiUrl('exams'), newExam, {
+                headers: getAuthHeaders()
             });
 
             setAlertState({
@@ -65,12 +67,20 @@ export default function CreateExamPage() {
             });
 
             setTimeout(() => {
-                router.push('/dashboard');
+                if (returnTo === 'calendar') {
+                    router.push('/admin/calendar');
+                } else {
+                    router.push('/dashboard');
+                }
             }, 1500);
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Creation error:', error);
-            const msg = error.response?.data?.message || "Failed to create exam. Please ensure all inputs are valid.";
+            let msg = "Failed to create exam. Please ensure all inputs are valid.";
+            if (error && typeof error === 'object' && 'response' in error) {
+                const axiosErr = error as { response?: { data?: { message?: string } } };
+                msg = axiosErr.response?.data?.message || msg;
+            }
             setAlertState({
                 isOpen: true,
                 title: 'Creation Failed',
@@ -139,7 +149,7 @@ export default function CreateExamPage() {
                                 <select
                                     className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none appearance-none bg-white"
                                     value={examType}
-                                    onChange={(e) => setExamType(e.target.value as any)}
+                                    onChange={(e) => setExamType(e.target.value as 'exam' | 'mock' | 'test')}
                                 >
                                     <option value="exam">Standard Exam</option>
                                     <option value="mock">Mock Exam</option>

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import axios from 'axios';
+import { apiUrl, getAuthHeaders } from '@/config/api';
 import { Exam } from '@/types';
 import { Plus, Search, Filter, ChevronRight, BookOpen, Clock, Users, Power, Loader2 } from 'lucide-react';
 import CurrentTime from '@/components/CurrentTime';
@@ -12,6 +13,9 @@ export default function AdminExamsPage() {
     const [exams, setExams] = useState<Exam[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [createdDateFilter, setCreatedDateFilter] = useState('');
+    const [scheduledDateFilter, setScheduledDateFilter] = useState('');
     const [togglingId, setTogglingId] = useState<number | null>(null);
     const [alertState, setAlertState] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({
         isOpen: false, title: '', message: '', type: 'info'
@@ -23,9 +27,8 @@ export default function AdminExamsPage() {
 
     const fetchExams = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:8000/api/exams', {
-                headers: { 'Authorization': `Bearer ${token}` }
+            const res = await axios.get(apiUrl('exams'), {
+                headers: getAuthHeaders()
             });
             setExams(res.data);
         } catch (error) {
@@ -38,29 +41,61 @@ export default function AdminExamsPage() {
     const handleToggleStatus = async (id: number) => {
         setTogglingId(id);
         try {
-            const token = localStorage.getItem('token');
-            await axios.put(`http://localhost:8000/api/exams/${id}/status`, {}, {
-                headers: { 'Authorization': `Bearer ${token}` }
+            await axios.put(apiUrl(`exams/${id}/status`), {}, {
+                headers: getAuthHeaders()
             });
             
             setExams(prev => prev.map(e => e.id === id ? { ...e, is_active: !e.is_active } : e));
             setAlertState({ isOpen: true, title: 'Success', message: 'Exam status updated.', type: 'success' });
-        } catch (error: any) {
-            const msg = error.response?.data?.message || "Failed to update status.";
+        } catch (error: unknown) {
+            let msg = "Failed to update status.";
+            if (error && typeof error === 'object' && 'response' in error) {
+                const axiosErr = error as { response?: { data?: { message?: string } } };
+                msg = axiosErr.response?.data?.message || msg;
+            }
             setAlertState({ isOpen: true, title: 'Error', message: msg, type: 'error' });
         } finally {
             setTogglingId(null);
         }
     };
 
-    const filteredExams = exams.filter(exam => 
-        exam.title.toLowerCase().includes(filter.toLowerCase())
-    );
+    const getStatus = (exam: Exam) => {
+        if (exam.is_active) return 'Active';
+        if (exam.scheduled_at) {
+            const scheduledTime = new Date(exam.scheduled_at);
+            const now = new Date();
+            if (scheduledTime > now) return 'Scheduled';
+            return 'Ended';
+        }
+        return 'Draft';
+    };
+
+    const filteredExams = exams.filter(exam => {
+        const matchesSearch = exam.title.toLowerCase().includes(filter.toLowerCase());
+        
+        let matchesStatus = true;
+        const status = getStatus(exam).toLowerCase();
+        if (statusFilter !== 'all') {
+            matchesStatus = status === statusFilter;
+        }
+
+        let matchesCreated = true;
+        if (createdDateFilter && exam.created_at) {
+            matchesCreated = new Date(exam.created_at).toISOString().split('T')[0] === createdDateFilter;
+        }
+        
+        let matchesScheduled = true;
+        if (scheduledDateFilter) {
+             if (!exam.scheduled_at) matchesScheduled = false;
+             else matchesScheduled = new Date(exam.scheduled_at).toISOString().split('T')[0] === scheduledDateFilter;
+        }
+
+        return matchesSearch && matchesStatus && matchesCreated && matchesScheduled;
+    });
 
     return (
         <div className="p-8 min-h-screen bg-slate-50 text-slate-900 space-y-8 animate-in fade-in duration-500">
             <AlertModal 
-                isOpen={alertState.isOpen} 
                 onClose={() => setAlertState(prev => ({...prev, isOpen: false}))}
                 {...alertState}
             />
@@ -98,6 +133,54 @@ export default function AdminExamsPage() {
                         <Filter size={16} />
                         <span>{filteredExams.length} Exams</span>
                     </div>
+                </div>
+                
+                {/* Advanced Filters */}
+                <div className="px-6 py-4 bg-white border-b border-slate-100 flex flex-wrap gap-4 items-center">
+                    <select 
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-500"
+                    >
+                        <option value="all">All Statuses</option>
+                        <option value="active">Active</option>
+                        <option value="scheduled">Scheduled</option>
+                        <option value="ended">Ended</option>
+                        <option value="draft">Draft</option>
+                    </select>
+
+                    <div className="flex items-center gap-2">
+                        <label className="text-xs font-semibold text-slate-500">Created:</label>
+                        <input 
+                            type="date" 
+                            value={createdDateFilter}
+                            onChange={(e) => setCreatedDateFilter(e.target.value)}
+                            className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-500"
+                        />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <label className="text-xs font-semibold text-slate-500">Scheduled:</label>
+                        <input 
+                            type="date" 
+                            value={scheduledDateFilter}
+                            onChange={(e) => setScheduledDateFilter(e.target.value)}
+                            className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-500"
+                        />
+                    </div>
+                    
+                    {(statusFilter !== 'all' || createdDateFilter || scheduledDateFilter) && (
+                        <button 
+                            onClick={() => {
+                                setStatusFilter('all');
+                                setCreatedDateFilter('');
+                                setScheduledDateFilter('');
+                            }}
+                            className="text-xs text-red-500 hover:text-red-700 font-medium ml-auto"
+                        >
+                            Clear Filters
+                        </button>
+                    )}
                 </div>
 
                 {/* Table */}
@@ -156,12 +239,18 @@ export default function AdminExamsPage() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-                                                exam.is_active 
-                                                    ? 'bg-emerald-100 text-emerald-700' 
-                                                    : 'bg-slate-100 text-slate-500'
+                                                getStatus(exam) === 'Active' ? 'bg-emerald-100 text-emerald-700' :
+                                                getStatus(exam) === 'Scheduled' ? 'bg-amber-100 text-amber-700' :
+                                                getStatus(exam) === 'Draft' ? 'bg-slate-100 text-slate-600' :
+                                                'bg-red-50 text-red-600' // Ended
                                             }`}>
-                                                <span className={`w-2 h-2 rounded-full ${exam.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
-                                                {exam.is_active ? 'Active' : 'Ended'}
+                                                <span className={`w-2 h-2 rounded-full ${
+                                                    getStatus(exam) === 'Active' ? 'bg-emerald-500 animate-pulse' : 
+                                                    getStatus(exam) === 'Scheduled' ? 'bg-amber-500' :
+                                                    getStatus(exam) === 'Draft' ? 'bg-slate-400' :
+                                                    'bg-red-400'
+                                                }`}></span>
+                                                {getStatus(exam)}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">

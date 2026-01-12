@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import axios from 'axios';
+import { apiUrl, APP_NAME } from '@/config/api';
+import { STORAGE_KEYS } from '@/config/constants';
 import { useRouter } from 'next/navigation';
 import { Loader2, ShieldCheck, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -19,12 +21,12 @@ export default function ExaminerLoginPage() {
         setError('');
 
         try {
-            const res = await axios.post('http://localhost:8000/api/examiner/login', {
+            const res = await axios.post(apiUrl('examiner/login'), {
                 email,
                 password
             });
-            localStorage.setItem('token', res.data.token);
-            localStorage.setItem('user', JSON.stringify(res.data.user));
+            localStorage.setItem(STORAGE_KEYS.TOKEN, res.data.token);
+            localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(res.data.user));
             router.push('/dashboard');
         } catch (err) {
             if (axios.isAxiosError(err) && err.response) {
@@ -94,7 +96,7 @@ export default function ExaminerLoginPage() {
             </div>
             
             <div className="absolute bottom-8 text-slate-600 text-xs">
-                Restricted Access Area • ExamMaster CBT
+                Restricted Access Area • {APP_NAME}
             </div>
         </div>
     );

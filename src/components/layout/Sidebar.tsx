@@ -3,8 +3,11 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LogOut, LayoutDashboard, ShieldCheck, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LogOut, ShieldCheck, ChevronLeft, ChevronRight } from 'lucide-react';
+import { APP_NAME, getAuthHeaders } from '@/config/api';
 import axios from 'axios';
+import { apiUrl } from '@/config/api';
+import { STORAGE_KEYS } from '@/config/constants';
 
 interface MenuItem {
     label: string;
@@ -25,13 +28,13 @@ export default function Sidebar({ menuItems, roleLabel, collapsed, toggleCollaps
 
     const handleLogout = async () => {
         try {
-            await axios.post('http://localhost:8000/api/logout', {}, {
-                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            await axios.post(apiUrl('logout'), {}, {
+                 headers: getAuthHeaders()
             });
         } catch (e) {
             console.error(e);
         }
-        localStorage.removeItem('token');
+        localStorage.removeItem(STORAGE_KEYS.TOKEN);
         router.push('/');
     };
 
@@ -51,7 +54,7 @@ export default function Sidebar({ menuItems, roleLabel, collapsed, toggleCollaps
                    <ShieldCheck size={24} className="text-white" />
                 </div>
                 <div className={`overflow-hidden transition-all duration-300 ${collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
-                    <h1 className="text-xl font-bold tracking-tight whitespace-nowrap">ExamMaster</h1>
+                    <h1 className="text-xl font-bold tracking-tight whitespace-nowrap">{APP_NAME}</h1>
                     <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">{roleLabel}</span>
                 </div>
             </div>

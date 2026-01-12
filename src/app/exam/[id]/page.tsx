@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import ExamEngine from '@/components/exam/ExamEngine';
 import { Attempt, Question } from '@/types';
 import axios from 'axios';
+import { apiUrl, getAuthHeaders } from '@/config/api';
 
 export default function ExamPage() {
     const params = useParams();
@@ -20,8 +21,8 @@ export default function ExamPage() {
         const startExam = async () => {
             try {
                 // Start or resume attempt
-                const res = await axios.post(`http://localhost:8000/api/exams/${id}/start`, {}, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                const res = await axios.post(apiUrl(`exams/${id}/start`), {}, {
+                    headers: getAuthHeaders()
                 });
                 setAttempt(res.data);
                 // In real app, questions might come from separate endpoint or nested

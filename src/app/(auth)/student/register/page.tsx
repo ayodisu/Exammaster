@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import axios from 'axios';
+import { apiUrl, APP_NAME } from '@/config/api';
+import { STORAGE_KEYS } from '@/config/constants';
 
 import { Loader2, UserPlus, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -32,8 +34,8 @@ export default function CandidateRegisterPage() {
         setError('');
 
         try {
-            const res = await axios.post('http://localhost:8000/api/candidate/register', formData);
-            localStorage.setItem('token', res.data.token);
+            const res = await axios.post(apiUrl('candidate/register'), formData);
+            localStorage.setItem(STORAGE_KEYS.TOKEN, res.data.token);
             // Force a full reload to ensure auth state is picked up by all components
             window.location.href = '/exams';
         } catch (err) {
@@ -65,7 +67,7 @@ export default function CandidateRegisterPage() {
                          <Link href="/" className="text-blue-200 hover:text-white flex items-center gap-1 text-sm font-medium mb-8">
                             <ArrowLeft size={16} /> Back
                         </Link>
-                        <h2 className="text-3xl font-bold mb-4">Join ExamMaster</h2>
+                        <h2 className="text-3xl font-bold mb-4">Join {APP_NAME}</h2>
                         <p className="text-blue-100">Create your candidate profile to start taking assessments. Your data is secure and used only for examination purposes.</p>
                     </div>
                 </div>
