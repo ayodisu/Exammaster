@@ -123,7 +123,7 @@ class ExamController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        $exams = $request->user()->exams()->with('attempts')->get();
+        $exams = $request->user()->exams()->withTrashed()->with('attempts')->get();
 
         $uniqueStudentIds = [];
         $totalDurations = 0;
@@ -232,7 +232,9 @@ class ExamController extends Controller
 
     public function userAttempts(Request $request)
     {
-        return Attempt::with('exam')
+        return Attempt::with(['exam' => function ($query) {
+            $query->withTrashed();
+        }])
             ->where('student_id', $request->user()->id)
             ->where('status', 'submitted')
             ->get();
@@ -285,9 +287,9 @@ class ExamController extends Controller
 
         $exam = $request->user()->exams()->findOrFail($id);
 
-        // Delete related data first
-        $exam->questions()->delete();
-        $exam->attempts()->delete();
+        // Soft delete will preserve attempts and questions
+        // $exam->questions()->delete();
+        // $exam->attempts()->delete();
 
         $exam->delete();
 

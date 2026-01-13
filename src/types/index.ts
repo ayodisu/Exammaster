@@ -18,7 +18,7 @@ export interface Question {
     explanation?: string;
 }
 
-export interface Exam {
+export interface  Exam {
     id: number;
     title: string;
     duration_minutes: number;
@@ -49,6 +49,14 @@ export interface Student {
     exam_number?: string;
 }
 
+export interface Violation {
+    id: number;
+    attempt_id: number;
+    type: string;
+    occurred_at: string;
+    details?: string;
+}
+
 export interface Attempt {
     id: number;
     student_id: number;
@@ -60,5 +68,6 @@ export interface Attempt {
     created_at?: string;
     exam?: Exam;
     student?: Student;
+    violations?: Violation[];
 }
 

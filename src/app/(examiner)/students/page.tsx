@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { apiUrl, getAuthHeaders } from '@/config/api';
 import { User, Attempt } from '@/types';
-import { Search, User as UserIcon, Mail, X, BookOpen, TrendingUp, Award, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Search, User as UserIcon, Mail, X, BookOpen, TrendingUp, Award, Clock, CheckCircle, XCircle, Loader2, AlertTriangle } from 'lucide-react';
 
 interface StudentWithStats extends User {
     attempts_count?: number;
@@ -14,7 +14,7 @@ export default function StudentsPage() {
     const [students, setStudents] = useState<StudentWithStats[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    
+
     // Modal state
     const [selectedStudent, setSelectedStudent] = useState<StudentWithStats | null>(null);
     const [studentAttempts, setStudentAttempts] = useState<Attempt[]>([]);
@@ -55,15 +55,15 @@ export default function StudentsPage() {
         }
     };
 
-    const filteredStudents = students.filter(s => 
-        s.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const filteredStudents = students.filter(s =>
+        s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.exam_number?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     // Calculate stats for modal
     const submittedAttempts = studentAttempts.filter(a => a.status === 'submitted');
-    const avgScore = submittedAttempts.length > 0 
+    const avgScore = submittedAttempts.length > 0
         ? Math.round(submittedAttempts.reduce((acc, a) => acc + (a.score || 0), 0) / submittedAttempts.length)
         : 0;
     const passCount = submittedAttempts.filter(a => (a.score || 0) >= 50).length;
@@ -82,9 +82,9 @@ export default function StudentsPage() {
                 <div className="p-6 border-b border-slate-100 flex gap-4 items-center">
                     <div className="relative flex-1 max-w-md">
                         <Search className="absolute left-3 top-3 text-slate-400" size={18} />
-                        <input 
-                            type="text" 
-                            placeholder="Search by name, email, or exam number..." 
+                        <input
+                            type="text"
+                            placeholder="Search by name, email, or exam number..."
                             className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -94,7 +94,7 @@ export default function StudentsPage() {
                         {filteredStudents.length} candidate{filteredStudents.length !== 1 ? 's' : ''}
                     </span>
                 </div>
-                
+
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead className="bg-slate-50 text-slate-500 text-sm">
@@ -112,8 +112,8 @@ export default function StudentsPage() {
                                 <tr><td colSpan={4} className="p-8 text-center text-slate-400">No candidates found.</td></tr>
                             ) : (
                                 filteredStudents.map(student => (
-                                    <tr 
-                                        key={student.id} 
+                                    <tr
+                                        key={student.id}
                                         onClick={() => handleStudentClick(student)}
                                         className="hover:bg-indigo-50/50 transition-colors cursor-pointer"
                                     >
@@ -136,11 +136,10 @@ export default function StudentsPage() {
                                             </span>
                                         </td>
                                         <td className="p-6">
-                                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                                                (student.attempts_count || 0) > 0 
-                                                    ? 'bg-emerald-100 text-emerald-700' 
+                                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${(student.attempts_count || 0) > 0
+                                                    ? 'bg-emerald-100 text-emerald-700'
                                                     : 'bg-slate-100 text-slate-500'
-                                            }`}>
+                                                }`}>
                                                 <BookOpen size={12} /> {student.attempts_count || 0}
                                             </span>
                                         </td>
@@ -171,7 +170,7 @@ export default function StudentsPage() {
                                 <X size={20} className="text-slate-500" />
                             </button>
                         </div>
-                        
+
                         {/* Stats Cards */}
                         <div className="grid grid-cols-3 gap-4 p-6 border-b border-slate-100 shrink-0">
                             <div className="bg-indigo-50 rounded-xl p-4 text-center">
@@ -206,44 +205,64 @@ export default function StudentsPage() {
                             ) : (
                                 <div className="space-y-3">
                                     {studentAttempts.map(attempt => (
-                                        <div key={attempt.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white hover:shadow-md transition-all flex items-center justify-between">
-                                            <div>
-                                                <h4 className="font-bold text-slate-800">{attempt.exam?.title || 'Unknown Exam'}</h4>
-                                                <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
-                                                    <span className="flex items-center gap-1">
-                                                        <Clock size={12} />
-                                                        {attempt.submitted_at 
-                                                            ? new Date(attempt.submitted_at).toLocaleDateString() 
-                                                            : 'Ongoing'}
-                                                    </span>
-                                                    {attempt.exam?.type && (
-                                                        <span className={`uppercase font-bold px-1.5 py-0.5 rounded ${
-                                                            attempt.exam.type === 'mock' ? 'bg-amber-100 text-amber-700' :
-                                                            attempt.exam.type === 'test' ? 'bg-purple-100 text-purple-700' :
-                                                            'bg-indigo-100 text-indigo-700'
-                                                        }`}>
-                                                            {attempt.exam.type}
+                                        <div key={attempt.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white hover:shadow-md transition-all">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <h4 className="font-bold text-slate-800">{attempt.exam?.title || 'Unknown Exam'}</h4>
+                                                    <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
+                                                        <span className="flex items-center gap-1">
+                                                            <Clock size={12} />
+                                                            {attempt.submitted_at
+                                                                ? new Date(attempt.submitted_at).toLocaleDateString()
+                                                                : 'Ongoing'}
                                                         </span>
+                                                        {attempt.exam?.type && (
+                                                            <span className={`uppercase font-bold px-1.5 py-0.5 rounded ${attempt.exam.type === 'mock' ? 'bg-amber-100 text-amber-700' :
+                                                                    attempt.exam.type === 'test' ? 'bg-purple-100 text-purple-700' :
+                                                                        'bg-indigo-100 text-indigo-700'
+                                                                }`}>
+                                                                {attempt.exam.type}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    {attempt.status === 'submitted' ? (
+                                                        <>
+                                                            <div className={`text-2xl font-bold ${(attempt.score || 0) >= 50 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                                {attempt.score}%
+                                                            </div>
+                                                            <span className={`inline-flex items-center gap-1 text-xs font-bold ${(attempt.score || 0) >= 50 ? 'text-emerald-600' : 'text-red-600'
+                                                                }`}>
+                                                                {(attempt.score || 0) >= 50 ? <CheckCircle size={12} /> : <XCircle size={12} />}
+                                                                {(attempt.score || 0) >= 50 ? 'Passed' : 'Failed'}
+                                                            </span>
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-amber-600 font-bold text-sm">Ongoing</span>
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                {attempt.status === 'submitted' ? (
-                                                    <>
-                                                        <div className={`text-2xl font-bold ${(attempt.score || 0) >= 50 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                                            {attempt.score}%
-                                                        </div>
-                                                        <span className={`inline-flex items-center gap-1 text-xs font-bold ${
-                                                            (attempt.score || 0) >= 50 ? 'text-emerald-600' : 'text-red-600'
-                                                        }`}>
-                                                            {(attempt.score || 0) >= 50 ? <CheckCircle size={12} /> : <XCircle size={12} />}
-                                                            {(attempt.score || 0) >= 50 ? 'Passed' : 'Failed'}
+
+                                            {/* Security Violations */}
+                                            {attempt.violations && attempt.violations.length > 0 && (
+                                                <div className="mt-3 pt-3 border-t border-slate-100">
+                                                    <div className="flex items-center gap-2 mb-2 text-red-600">
+                                                        <AlertTriangle size={14} />
+                                                        <span className="text-xs font-bold">
+                                                            {attempt.violations.length} Security Violation{attempt.violations.length !== 1 ? 's' : ''} Detected
                                                         </span>
-                                                    </>
-                                                ) : (
-                                                    <span className="text-amber-600 font-bold text-sm">Ongoing</span>
-                                                )}
-                                            </div>
+                                                    </div>
+                                                    <div className="space-y-1 bg-red-50 p-2 rounded-lg border border-red-100">
+                                                        {attempt.violations.map(v => (
+                                                            <div key={v.id} className="text-[10px] sm:text-xs text-red-700 flex items-center justify-between">
+                                                                <span>{v.details || v.type}</span>
+                                                                <span className="text-red-400 font-mono">{new Date(v.occurred_at).toLocaleTimeString()}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>

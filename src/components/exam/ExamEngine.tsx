@@ -19,6 +19,13 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
     const router = useRouter();
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<number, string>>({});
+    // Show instructions if no answers recorded yet
+    const [showInstructions, setShowInstructions] = useState(() => {
+        return true;
+    });
+    const [violationCount, setViolationCount] = useState(0);
+    const MAX_VIOLATIONS = 3;
+
     const answersRef = useRef(answers);
     const [timeLeft, setTimeLeft] = useState(attempt.exam ? attempt.exam.duration_minutes * 60 : 0);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,7 +39,24 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
         isOpen: false, title: '', message: '', type: 'info'
     });
 
-    useExamSecurity({ attemptId: attempt.id });
+    // Security Violation Handler
+    const handleViolation = useCallback((type: string) => {
+        setViolationCount(prev => {
+            const newCount = prev + 1;
+            const violationText = type === 'tab_switch' ? 'You switched tabs' : 'You clicked outside the exam window';
+            setAlertState({
+                isOpen: true,
+                title: 'Security Warning!',
+                message: `${violationText}. This is strictly prohibited! Violation ${newCount}/${MAX_VIOLATIONS}.`,
+                type: 'error',
+                confirmText: 'I Understand',
+                onConfirm: () => setAlertState(prev => ({ ...prev, isOpen: false }))
+            });
+            return newCount;
+        });
+    }, []);
+
+    useExamSecurity({ attemptId: attempt.id, onViolation: handleViolation });
 
     // Sync answers ref for autosave
     useEffect(() => {
@@ -114,11 +138,11 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
 
     const saveProgress = useCallback(async () => {
         if (isSubmitting || submissionResult) return;
-        
+
         const currentAns = answersRef.current;
         const currentQ = initialQuestions[currentQuestionIndex];
         if (currentAns[currentQ.id]) {
-             try {
+            try {
                 await axios.post(apiUrl(`attempts/${attempt.id}/save`), {
                     question_id: currentQ.id,
                     student_answer: currentAns[currentQ.id],
@@ -152,12 +176,12 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
         try {
             await saveProgress();
             const res = await axios.post(apiUrl(`attempts/${attempt.id}/finish`), {}, {
-                 headers: getAuthHeaders()
+                headers: getAuthHeaders()
             });
             setSubmissionResult({ score: res.data.score || 0, passed: res.data.passed ?? true });
             setShowResultModal(true);
-            if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-            
+            if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
+
             // Auto-redirect to dashboard after 5 seconds
             setTimeout(() => {
                 router.push('/student-dashboard');
@@ -189,6 +213,16 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
         return () => clearInterval(timer);
     }, [handleSubmit]);
 
+    // Auto-submit on max violations
+    useEffect(() => {
+        if (violationCount >= MAX_VIOLATIONS && !isSubmitting && !submissionResult) {
+            setTimeout(() => {
+                setAlertState(prev => ({ ...prev, isOpen: false })); // Close warning
+                handleSubmit();
+            }, 0);
+        }
+    }, [violationCount, isSubmitting, submissionResult, handleSubmit]);
+
     const handleAnswerSelect = (optionId: string | number) => {
         setAnswers(prev => ({ ...prev, [initialQuestions[currentQuestionIndex].id]: String(optionId) }));
     };
@@ -200,16 +234,67 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
     };
 
     const currentQuestion = initialQuestions[currentQuestionIndex];
-    if (!currentQuestion) return <div className="h-[100dvh] flex items-center justify-center"><Loader2 className="animate-spin text-blue-600"/></div>;
+    if (!currentQuestion) return <div className="h-[100dvh] flex items-center justify-center"><Loader2 className="animate-spin text-blue-600" /></div>;
 
     // Timer Styles
     const isCriticalTime = timeLeft < 60;
     const isBlinking = timeLeft < 30;
 
+    // Instructions Screen
+    if (showInstructions) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+                <div className="bg-white max-w-2xl w-full rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-300">
+                    <div className="bg-slate-900 p-8 text-white text-center">
+                        <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
+                            <Monitor size={32} />
+                        </div>
+                        <h1 className="text-2xl font-bold">{attempt.exam?.title || 'Assessment Instructions'}</h1>
+                        <p className="text-slate-300 mt-2">Please read the following instructions carefully.</p>
+                    </div>
+                    <div className="p-8 space-y-6">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                                <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Duration</span>
+                                <div className="text-2xl font-bold text-slate-800 mt-1">{attempt.exam?.duration_minutes} Mins</div>
+                            </div>
+                            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                                <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Questions</span>
+                                <div className="text-2xl font-bold text-slate-800 mt-1">{initialQuestions.length}</div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                                <CheckCircle2 size={18} className="text-emerald-500" /> Exam Rules
+                            </h3>
+                            <ul className="space-y-2 text-sm text-slate-600 pl-6 list-disc marker:text-slate-300">
+                                <li>Ensure you have a stable internet connection.</li>
+                                <li>Do not refresh the page or exit fullscreen mode.</li>
+                                <li>Answer all questions before submitting.</li>
+                                <li>The exam will auto-submit when the timer expires.</li>
+                            </ul>
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                enterFullscreen();
+                                setShowInstructions(false);
+                            }}
+                            className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-lg shadow-lg shadow-blue-200 transition-all active:scale-95 flex items-center justify-center gap-2"
+                        >
+                            Start Assessment <ChevronRight size={20} />
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div ref={containerRef} className="bg-slate-50 h-[100dvh] flex flex-col overflow-hidden select-none relative">
-            
-            <AlertModal 
+
+            <AlertModal
                 onClose={() => setAlertState(prev => ({ ...prev, isOpen: false }))}
                 {...alertState}
             />
@@ -218,7 +303,7 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
             {!isFullscreen && !showResultModal && (
                 <div className="fixed inset-0 z-[60] bg-slate-900/95 backdrop-blur flex items-center justify-center p-4">
                     <div className="text-center text-white max-w-md animate-in slide-in-from-bottom-4">
-                        <Monitor size={48} className="mx-auto mb-4 text-slate-400"/>
+                        <Monitor size={48} className="mx-auto mb-4 text-slate-400" />
                         <h2 className="text-2xl font-bold mb-2">Fullscreen Required</h2>
                         <p className="text-slate-300 mb-6">Please enable fullscreen mode to improve your focus.</p>
                         <button onClick={enterFullscreen} className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-bold transition-transform active:scale-95 shadow-lg shadow-blue-900/50">
@@ -243,11 +328,10 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
                     </div>
                 </div>
 
-                <div className={`px-4 py-2 rounded-xl font-mono text-lg lg:text-xl font-bold flex items-center gap-2 transition-all duration-300 ${
-                    isCriticalTime 
-                        ? 'bg-red-100 text-red-600 border border-red-200' + (isBlinking ? ' animate-pulse' : '') 
-                        : 'bg-slate-100 text-slate-700'
-                }`}>
+                <div className={`px-4 py-2 rounded-xl font-mono text-lg lg:text-xl font-bold flex items-center gap-2 transition-all duration-300 ${isCriticalTime
+                    ? 'bg-red-100 text-red-600 border border-red-200' + (isBlinking ? ' animate-pulse' : '')
+                    : 'bg-slate-100 text-slate-700'
+                    }`}>
                     <Clock size={20} className={isCriticalTime ? 'animate-bounce' : ''} />
                     {formatTime(timeLeft)}
                 </div>
@@ -261,24 +345,22 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
                     <main className="flex-1 overflow-y-auto p-4 lg:p-12 pb-24 lg:pb-12 scrollbar-thin scrollbar-thumb-slate-300">
                         <div className="max-w-3xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500 key={currentQuestionIndex}">
                             <div className="prose prose-lg max-w-none text-slate-800">
-                                 <h2 className="text-xl md:text-3xl font-bold leading-relaxed">{currentQuestion.text}</h2>
+                                <h2 className="text-xl md:text-3xl font-bold leading-relaxed">{currentQuestion.text}</h2>
                             </div>
-                            
+
                             <div className="space-y-3 pb-8">
                                 {currentQuestion.options_json?.map((opt) => {
                                     const isSelected = answers[currentQuestion.id] === String(opt.id);
                                     return (
-                                        <label 
-                                            key={opt.id} 
-                                            className={`flex items-center gap-4 p-4 lg:p-5 rounded-2xl border-2 transition-all cursor-pointer group active:scale-[0.99] select-none ${
-                                                isSelected 
-                                                    ? 'border-blue-600 bg-blue-50/50 shadow-blue-100 shadow-lg' 
-                                                    : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50'
-                                            }`}
+                                        <label
+                                            key={opt.id}
+                                            className={`flex items-center gap-4 p-4 lg:p-5 rounded-2xl border-2 transition-all cursor-pointer group active:scale-[0.99] select-none ${isSelected
+                                                ? 'border-blue-600 bg-blue-50/50 shadow-blue-100 shadow-lg'
+                                                : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50'
+                                                }`}
                                         >
-                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-                                                isSelected ? 'border-blue-600 bg-blue-600' : 'border-slate-300 group-hover:border-blue-400'
-                                            }`}>
+                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'border-blue-600 bg-blue-600' : 'border-slate-300 group-hover:border-blue-400'
+                                                }`}>
                                                 {isSelected && <div className="w-2.5 h-2.5 bg-white rounded-full" />}
                                             </div>
                                             <input
@@ -301,17 +383,17 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
 
                     {/* Desktop Navigation Footer */}
                     <div className="hidden lg:flex items-center justify-between p-6 bg-white border-t border-slate-200 z-30">
-                         <button
+                        <button
                             onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
                             disabled={currentQuestionIndex === 0}
                             className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             <ChevronLeft size={20} /> Previous
                         </button>
-                        
+
                         {currentQuestionIndex < initialQuestions.length - 1 ? (
                             <button
-                                 onClick={() => {
+                                onClick={() => {
                                     saveProgress();
                                     setCurrentQuestionIndex(prev => prev + 1);
                                 }}
@@ -320,12 +402,22 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
                                 Next <ChevronRight size={20} />
                             </button>
                         ) : (
-                             <button
-                                onClick={confirmSubmit}
-                                className="flex items-center gap-2 px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg shadow-green-200 transition-all active:scale-95"
-                            >
-                                Submit Exam <Send size={18} />
-                            </button>
+                            // Last Question Logic
+                            Object.keys(answers).length === initialQuestions.length ? (
+                                <button
+                                    onClick={confirmSubmit}
+                                    className="flex items-center gap-2 px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg shadow-green-200 transition-all active:scale-95 animate-pulse"
+                                >
+                                    Submit Exam <Send size={18} />
+                                </button>
+                            ) : (
+                                <button
+                                    disabled
+                                    className="flex items-center gap-2 px-8 py-3 bg-slate-100 text-slate-400 rounded-xl font-bold cursor-not-allowed border border-slate-200"
+                                >
+                                    Next <ChevronRight size={20} />
+                                </button>
+                            )
                         )}
                     </div>
                 </div>
@@ -349,13 +441,12 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
                                             saveProgress();
                                             setCurrentQuestionIndex(idx);
                                         }}
-                                        className={`aspect-square rounded-lg font-bold text-sm transition-all flex items-center justify-center ${
-                                            isCurrent 
-                                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 ring-2 ring-blue-600 ring-offset-2' 
-                                                : isAnswered 
-                                                    ? 'bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200'
-                                                    : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200'
-                                        }`}
+                                        className={`aspect-square rounded-lg font-bold text-sm transition-all flex items-center justify-center ${isCurrent
+                                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 ring-2 ring-blue-600 ring-offset-2'
+                                            : isAnswered
+                                                ? 'bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200'
+                                                : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200'
+                                            }`}
                                     >
                                         {idx + 1}
                                     </button>
@@ -364,9 +455,9 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
                         </div>
                         {/* Legend */}
                         <div className="mt-8 space-y-2 text-xs font-medium text-slate-500">
-                             <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-blue-600"></div> Current</div>
-                             <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-emerald-100 border border-emerald-200"></div> Answered</div>
-                             <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-slate-100 border border-slate-200"></div> Unanswered</div>
+                            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-blue-600"></div> Current</div>
+                            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-emerald-100 border border-emerald-200"></div> Answered</div>
+                            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-slate-100 border border-slate-200"></div> Unanswered</div>
                         </div>
                     </div>
                     {/* Submit Area */}
@@ -392,12 +483,12 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
                 >
                     <ChevronLeft size={20} /> Back
                 </button>
-                
+
                 {currentQuestionIndex < initialQuestions.length - 1 ? (
                     <button
                         onClick={() => {
                             saveProgress();
-                             setCurrentQuestionIndex(prev => prev + 1);
+                            setCurrentQuestionIndex(prev => prev + 1);
                         }}
                         className="flex-1 flex items-center justify-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-200 transition-all active:scale-95"
                     >
@@ -405,12 +496,21 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
                     </button>
                 ) : (
                     // On mobile, show submit button here if it's the last question
-                    <button
-                        onClick={confirmSubmit}
-                        className="flex-1 flex items-center justify-center gap-2 px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg shadow-green-200 transition-all active:scale-95"
-                    >
-                        Finish <Send size={18} />
-                    </button>
+                    Object.keys(answers).length === initialQuestions.length ? (
+                        <button
+                            onClick={confirmSubmit}
+                            className="flex-1 flex items-center justify-center gap-2 px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg shadow-green-200 transition-all active:scale-95 animate-pulse"
+                        >
+                            Finish <Send size={18} />
+                        </button>
+                    ) : (
+                        <button
+                            disabled
+                            className="flex-1 flex items-center justify-center gap-2 px-8 py-3 bg-slate-100 text-slate-400 rounded-xl font-bold cursor-not-allowed border border-slate-200"
+                        >
+                            Next <ChevronRight size={20} />
+                        </button>
+                    )
                 )}
             </footer>
 
@@ -427,7 +527,7 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
                         <p className="text-slate-500 mb-8">
                             Your exam has been successfully submitted.
                         </p>
-                        
+
                         <div className="bg-slate-50 rounded-2xl p-6 mb-8 border border-slate-100">
                             <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">Your Score</span>
                             <div className={`text-6xl font-black mt-2 ${submissionResult.passed ? 'text-emerald-600' : 'text-slate-900'}`}>

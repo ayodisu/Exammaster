@@ -9,6 +9,13 @@ use Illuminate\Support\Carbon;
 
 class ProctoringController extends Controller
 {
+    public function index()
+    {
+        return Violation::with(['attempt.student', 'attempt.exam' => fn($q) => $q->withTrashed()])
+            ->latest('occurred_at')
+            ->get();
+    }
+
     public function logViolation(Request $request)
     {
         $validated = $request->validate([

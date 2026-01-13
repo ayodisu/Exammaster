@@ -23,7 +23,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/students/{id}/attempts', function ($id) {
         $student = \App\Models\Candidate::findOrFail($id);
-        return $student->attempts()->with('exam')->orderBy('created_at', 'desc')->get();
+        return $student->attempts()->with(['exam' => fn($q) => $q->withTrashed(), 'violations'])->orderBy('created_at', 'desc')->get();
     });
 
     // Assessment Management
@@ -42,5 +42,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/attempts', [ExamController::class, 'userAttempts']);
 
     // Proctoring
+    Route::get('/violations', [ProctoringController::class, 'index']);
     Route::post('/violations', [ProctoringController::class, 'logViolation']);
 });

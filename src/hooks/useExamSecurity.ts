@@ -18,6 +18,11 @@ export function useExamSecurity({ attemptId, onViolation }: UseExamSecurityProps
             }
         };
 
+        const handleBlur = () => {
+            logViolation('focus_lost', 'User clicked outside browser or switched apps');
+            onViolation?.('focus_lost');
+        };
+
         const handleContextMenu = (e: MouseEvent) => {
             e.preventDefault();
             // Optional: Log right click attempts?
@@ -28,7 +33,7 @@ export function useExamSecurity({ attemptId, onViolation }: UseExamSecurityProps
             e.preventDefault();
             logViolation('copy_paste', 'User attempted to copy content');
         };
-        
+
         const handlePaste = (e: ClipboardEvent) => {
             e.preventDefault();
             logViolation('copy_paste', 'User attempted to paste content');
@@ -52,12 +57,14 @@ export function useExamSecurity({ attemptId, onViolation }: UseExamSecurityProps
         document.addEventListener('contextmenu', handleContextMenu);
         document.addEventListener('copy', handleCopy);
         document.addEventListener('paste', handlePaste);
+        window.addEventListener('blur', handleBlur);
 
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             document.removeEventListener('contextmenu', handleContextMenu);
             document.removeEventListener('copy', handleCopy);
             document.removeEventListener('paste', handlePaste);
+            window.removeEventListener('blur', handleBlur);
         };
     }, [attemptId, onViolation]);
 }
