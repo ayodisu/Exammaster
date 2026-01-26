@@ -14,11 +14,12 @@ export interface Question {
     id: number;
     text: string;
     type: 'mcq' | 'tf';
-    options_json: { id: number; text: string }[] | null;
+    options_json: { id: string | number; text: string }[] | null;
+    correct_answer?: string;
     explanation?: string;
 }
 
-export interface  Exam {
+export interface Exam {
     id: number;
     title: string;
     duration_minutes: number;

@@ -20,9 +20,9 @@ export default function CreateExamPage() {
     const [examType, setExamType] = useState<'exam' | 'mock' | 'test'>('exam');
     const [datePart, setDatePart] = useState(prefilledDate || '');
     const [timePart, setTimePart] = useState('09:00');
-    const [questionCount, setQuestionCount] = useState(5);
+    const [duration, setDuration] = useState(60);
     const [isLoading, setIsLoading] = useState(false);
-    
+
     // Alert State
     const [alertState, setAlertState] = useState<{
         isOpen: boolean;
@@ -41,41 +41,33 @@ export default function CreateExamPage() {
         setIsLoading(true);
         try {
             // Mock Generation...
-            await new Promise(r => setTimeout(r, 1500));
+            await new Promise(r => setTimeout(r, 1000));
             const newExam = {
                 title: `${topic} ${examType === 'mock' ? 'Mock' : 'Exam'}`,
-                duration_minutes: questionCount * 2,
+                duration_minutes: duration,
                 type: examType,
                 scheduled_at: (datePart && timePart) ? `${datePart}T${timePart}` : null,
-                questions: Array(questionCount).fill(null).map((_, i) => ({
-                    text: `Sample Question ${i+1} about ${topic}`,
-                    type: 'mcq',
-                    options: ['A', 'B', 'C', 'D'],
-                    correct_answer: 'A'
-                }))
+                questions: [] // No sample questions
             };
 
             // Save to Backend
-            await axios.post(apiUrl('assessments'), newExam, {
+            const res = await axios.post(apiUrl('assessments'), newExam, {
                 headers: getAuthHeaders()
             });
+            const createdExam = res.data;
 
             setAlertState({
                 isOpen: true,
                 title: 'Success!',
-                message: 'Assessment created successfully. Redirecting...',
+                message: 'Assessment created successfully. Redirecting to setup...',
                 type: 'success'
             });
 
             setTimeout(() => {
-                if (returnTo === 'calendar') {
-                    router.push('/admin/calendar');
-                } else if (returnTo === 'assessments') {
-                    router.push('/admin/exams');
-                } else {
-                    router.push('/dashboard');
-                }
-            }, 1500);
+                // Redirect to the Exam Details / Edit Page explicitly
+                // This allows examiner to add questions and activate immediately.
+                router.push(`/admin/exams/${createdExam.id}`);
+            }, 1000);
 
         } catch (error: unknown) {
             console.error('Creation error:', error);
@@ -94,15 +86,15 @@ export default function CreateExamPage() {
             setIsLoading(false);
         }
     };
-    
+
     // ... loading state ...
 
     if (isLoading) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 animate-in fade-in">
                 <Loader2 className="w-16 h-16 text-indigo-600 animate-spin mb-6" />
-                <h3 className="text-2xl font-bold text-slate-800">Generating Assessment...</h3>
-                <p className="text-slate-500 mt-2">Creating {examType} about &quot;{topic}&quot;</p>
+                <h3 className="text-2xl font-bold text-slate-800">Creating Assessment...</h3>
+                <p className="text-slate-500 mt-2">Setting up {examType} about &quot;{topic}&quot;</p>
             </div>
         );
     }
@@ -116,7 +108,7 @@ export default function CreateExamPage() {
 
     return (
         <div className="min-h-screen bg-slate-50 p-8 flex items-center justify-center">
-            <AlertModal 
+            <AlertModal
                 isOpen={alertState.isOpen}
                 onClose={() => setAlertState(prev => ({ ...prev, isOpen: false }))}
                 title={alertState.title}
@@ -131,7 +123,7 @@ export default function CreateExamPage() {
                         <ArrowLeft size={16} /> Back
                     </Link>
                     <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                        <BrainCircuit className="text-indigo-600"/> Create New Assessment
+                        <BrainCircuit className="text-indigo-600" /> Create New Assessment
                     </h2>
                     <p className="text-slate-500 mt-1">Configure the details for the new assessment.</p>
                 </div>
@@ -168,28 +160,31 @@ export default function CreateExamPage() {
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">Number of Questions</label>
-                            <input 
-                                type="number" 
-                                min={3} 
-                                max={50}
-                                value={questionCount}
-                                onChange={(e) => setQuestionCount(parseInt(e.target.value) || 5)}
-                                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                            />
+                            <label className="block text-sm font-medium text-slate-700 mb-2">Duration (Minutes)</label>
+                            <div className="relative">
+                                <Clock className="absolute left-3 top-3.5 text-slate-400" size={20} />
+                                <input
+                                    type="number"
+                                    min={10}
+                                    max={300}
+                                    value={duration}
+                                    onChange={(e) => setDuration(parseInt(e.target.value) || 60)}
+                                    className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                                />
+                            </div>
                         </div>
                     </div>
 
                     <div>
-                         <label className="block text-sm font-medium text-slate-700 mb-2">Schedule (Optional)</label>
-                         <div className="grid grid-cols-2 gap-4">
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Schedule (Optional)</label>
+                        <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-xs font-semibold text-slate-500 mb-1">Date</label>
                                 <div className="relative">
                                     <div className="absolute left-3 top-3.5 text-slate-400 pointer-events-none">
                                         <Calendar size={20} />
                                     </div>
-                                    <input 
+                                    <input
                                         type="date"
                                         value={datePart}
                                         onChange={(e) => setDatePart(e.target.value)}
@@ -204,7 +199,7 @@ export default function CreateExamPage() {
                                     <div className="absolute left-3 top-3.5 text-slate-400 pointer-events-none">
                                         <Clock size={20} />
                                     </div>
-                                    <input 
+                                    <input
                                         type="time"
                                         value={timePart}
                                         onChange={(e) => setTimePart(e.target.value)}
@@ -213,8 +208,8 @@ export default function CreateExamPage() {
                                     />
                                 </div>
                             </div>
-                         </div>
-                         <p className="text-xs text-slate-400 mt-2">Leave date blank to make it available immediately.</p>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-2">Leave date blank to make it available immediately.</p>
                     </div>
 
                     <div className="flex items-center gap-3 mt-8 pt-4 border-t border-slate-100">
@@ -229,7 +224,7 @@ export default function CreateExamPage() {
                             disabled={!topic}
                             className="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-200"
                         >
-                            Generate Exam
+                            Create Assessment
                         </button>
                     </div>
                 </div>

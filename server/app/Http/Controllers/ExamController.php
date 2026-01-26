@@ -83,7 +83,7 @@ class ExamController extends Controller
         $exam = $request->user()->exams()->create([
             ...$examData,
             'is_published' => true,
-            'is_active' => !$hasSchedule // Active immediately only if no schedule
+            'is_active' => false // Default to inactive so examiner can upload questions first
         ]);
 
         if (!empty($validated['questions'])) {
@@ -172,7 +172,21 @@ class ExamController extends Controller
             ]);
         }
 
-        return response()->json($attempt->load('exam.questions'));
+        // Load exam without questions first
+        $attempt->load('exam');
+
+        // Get questions and shuffle deterministically based on attempt ID
+        $questions = $attempt->exam->questions;
+        $seed = $attempt->id;
+
+        $shuffled = $questions->sortBy(function ($q) use ($seed) {
+            return md5($q->id . $seed);
+        })->values();
+
+        // Set the shuffled questions back to the relation
+        $attempt->exam->setRelation('questions', $shuffled);
+
+        return response()->json($attempt);
     }
 
     public function saveAnswer(Request $request, $attemptId)
@@ -191,8 +205,22 @@ class ExamController extends Controller
 
         $question = Question::find($validated['question_id']);
         $isCorrect = false;
+
         if ($question->type === 'mcq' || $question->type === 'tf') {
+            // Direct Check (if ID == Correct Answer Text, usually for Manual questions with ID=Text)
             $isCorrect = $validated['student_answer'] == $question->correct_answer;
+
+            // Fail-safe: Check if Option ID matches but Text was stored as Correct Answer (Common in Imports)
+            if (!$isCorrect && !empty($question->options_json)) {
+                $options = is_string($question->options_json) ? json_decode($question->options_json, true) : $question->options_json;
+
+                // Find option where ID matches student answer
+                $selectedOption = collect($options)->firstWhere('id', $validated['student_answer']);
+
+                if ($selectedOption) {
+                    $isCorrect = $selectedOption['text'] == $question->correct_answer;
+                }
+            }
         }
 
         $response = Response::updateOrCreate(
@@ -277,6 +305,161 @@ class ExamController extends Controller
             ->get();
 
         return response()->json($attempts);
+    }
+
+    public function importQuestions(Request $request, $id)
+    {
+        if (! $request->user() instanceof \App\Models\Examiner) {
+            abort(403, 'Unauthorized');
+        }
+
+        $request->validate([
+            'file' => 'required|file|mimes:csv,txt',
+        ]);
+
+        $exam = $request->user()->exams()->findOrFail($id);
+        $file = $request->file('file');
+
+        // Use simple fopen for CSV
+        $handle = fopen($file->getPathname(), 'r');
+        $header = fgetcsv($handle); // Skip header row
+
+        $count = 0;
+        while (($row = fgetcsv($handle)) !== false) {
+            // Expected Format: 
+            // 0: Text, 1: Type (mcq/tf), 2: OptA, 3: OptB, 4: OptC, 5: OptD, 6: Correct (A/B/C/D)
+
+            if (count($row) < 7) continue;
+
+            $text = $row[0];
+            $type = strtolower($row[1]);
+            $optA = $row[2];
+            $optB = $row[3];
+            $optC = $row[4];
+            $optD = $row[5];
+            $correctLetter = strtoupper($row[6]);
+
+            $options = [];
+            if ($type === 'mcq') {
+                // Use Text as ID to match Manual Creation logic and Frontend expectations
+                $options = [
+                    ['id' => $optA, 'text' => $optA],
+                    ['id' => $optB, 'text' => $optB],
+                    ['id' => $optC, 'text' => $optC],
+                    ['id' => $optD, 'text' => $optD],
+                ];
+            } elseif ($type === 'tf') {
+                $options = [
+                    ['id' => 'True', 'text' => 'True'],
+                    ['id' => 'False', 'text' => 'False'],
+                ];
+            }
+
+            // Determine correct answer value
+            $correctAnswer = '';
+            if ($type === 'mcq') {
+                $map = ['A' => $optA, 'B' => $optB, 'C' => $optC, 'D' => $optD];
+                $correctAnswer = $map[$correctLetter] ?? $optA;
+            } else {
+                $correctAnswer = strtolower($correctLetter) === 'true' || strtoupper($correctLetter) === 'T' ? 'True' : 'False';
+            }
+
+            $exam->questions()->create([
+                'text' => $text,
+                'type' => $type,
+                'options_json' => $options,
+                'correct_answer' => $correctAnswer
+            ]);
+            $count++;
+        }
+        fclose($handle);
+
+        return response()->json(['message' => "Successfully imported {$count} questions"]);
+    }
+
+    public function addQuestion(Request $request, $id)
+    {
+        if (! $request->user() instanceof \App\Models\Examiner) abort(403);
+
+        $exam = $request->user()->exams()->findOrFail($id);
+
+        $validated = $request->validate([
+            'text' => 'required|string',
+            'type' => 'required|in:mcq,tf',
+            'options_json' => 'required|array',
+            'correct_answer' => 'required|string',
+        ]);
+
+        $question = $exam->questions()->create($validated);
+
+        return response()->json($question, 201);
+    }
+
+    public function updateQuestion(Request $request, $id)
+    {
+        if (! $request->user() instanceof \App\Models\Examiner) abort(403);
+
+        // Find question via Exam to ensure ownership? 
+        // Or just find question and check exam ownership.
+        $question = Question::findOrFail($id);
+        $exam = $request->user()->exams()->findOrFail($question->exam_id);
+
+        $validated = $request->validate([
+            'text' => 'required|string',
+            'type' => 'required|in:mcq,tf',
+            'options_json' => 'required|array',
+            'correct_answer' => 'required|string',
+        ]);
+
+        $question->update($validated);
+
+        return response()->json($question);
+    }
+
+    public function deleteQuestion(Request $request, $id)
+    {
+        if (! $request->user() instanceof \App\Models\Examiner) abort(403);
+
+        $question = Question::findOrFail($id);
+        $exam = $request->user()->exams()->findOrFail($question->exam_id);
+
+        // Manually delete related responses since FK is not CASCADE
+        \App\Models\Response::where('question_id', $question->id)->delete();
+
+        $question->delete();
+
+        return response()->json(['message' => 'Question deleted']);
+    }
+
+    public function deleteQuestions(Request $request)
+    {
+        if (! $request->user() instanceof \App\Models\Examiner) abort(403);
+
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:questions,id'
+        ]);
+
+        $ids = $request->ids;
+
+        // Verify ownership: Ensure all questions belong to exams owned by this examiner
+        // This is a bit expensive to check individually. 
+        // We can just fetch them and check ownership. 
+        // Or simply: DELETE FROM questions WHERE id IN (...) AND exam_id IN (SELECT id FROM exams WHERE examiner_id = ?)
+
+        $examinerId = $request->user()->id;
+
+        // Clean up responses first
+        \App\Models\Response::whereIn('question_id', $ids)->delete();
+
+        // Delete questions securely (ensure they belong to examiner's exams)
+        $deletedCount = Question::whereIn('id', $ids)
+            ->whereHas('exam', function ($query) use ($examinerId) {
+                $query->where('examiner_id', $examinerId);
+            })
+            ->delete();
+
+        return response()->json(['message' => "Deleted {$deletedCount} questions"]);
     }
 
     public function destroy(Request $request, $id)

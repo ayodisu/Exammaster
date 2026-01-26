@@ -34,6 +34,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/assessments/{id}/status', [App\Http\Controllers\ExamController::class, 'toggleStatus']);
     Route::delete('/assessments/{id}', [App\Http\Controllers\ExamController::class, 'destroy']);
     Route::get('/assessments/{id}/attempts', [App\Http\Controllers\ExamController::class, 'getAttempts']);
+    Route::post('/assessments/{id}/questions/import', [ExamController::class, 'importQuestions']);
+    Route::post('/questions/bulk-delete', [ExamController::class, 'deleteQuestions']); // NEW Route
+    Route::post('/questions', [ExamController::class, 'addQuestion']);
+    Route::put('/questions/{id}', [ExamController::class, 'updateQuestion']);
+    Route::delete('/questions/{id}', [ExamController::class, 'deleteQuestion']);
 
     // Assessment Taking
     Route::post('/assessments/{id}/start', [ExamController::class, 'start']);

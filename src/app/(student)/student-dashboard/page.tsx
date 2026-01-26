@@ -43,13 +43,16 @@ export default function StudentDashboard() {
 
         const fetchUpdates = async () => {
             try {
-                const res = await axios.get(apiUrl('assessments'), { headers });
+                // Get fresh headers for each poll
+                const currentHeaders = getAuthHeaders();
+                const res = await axios.get(apiUrl('assessments'), { headers: currentHeaders });
                 setExams(res.data);
             } catch (err: unknown) {
                 console.error("Polling failed", err);
                 if (err instanceof Error && 'response' in err) {
                     const axiosErr = err as { response?: { status?: number } };
                     if (axiosErr.response?.status === 401) {
+                        // Token likely expired
                         router.push('/');
                     }
                 }

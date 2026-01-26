@@ -10,6 +10,26 @@ class Exam extends Model
 {
     use HasFactory, SoftDeletes;
 
+    public $incrementing = false;
+
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+            if (empty($model->id)) {
+                $model->id = self::generateUniqueId();
+            }
+        });
+    }
+
+    private static function generateUniqueId()
+    {
+        do {
+            $id = mt_rand(10000000, 99999999);
+        } while (self::where('id', $id)->exists());
+
+        return $id;
+    }
+
     protected $fillable = [
         'examiner_id',
         'title',
