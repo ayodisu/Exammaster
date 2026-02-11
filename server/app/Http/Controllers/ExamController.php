@@ -57,8 +57,7 @@ class ExamController extends Controller
 
     public function store(Request $request)
     {
-        \Illuminate\Support\Facades\Log::info('Store Exam Request User Class: ' . get_class($request->user()));
-        \Illuminate\Support\Facades\Log::info('User ID: ' . $request->user()->id);
+
 
         if (! $request->user() instanceof \App\Models\Examiner) {
             abort(403, 'Unauthorized');
@@ -119,8 +118,7 @@ class ExamController extends Controller
 
     public function stats(Request $request)
     {
-        \Illuminate\Support\Facades\Log::info('Stats Request User Class: ' . ($request->user() ? get_class($request->user()) : 'null'));
-        \Illuminate\Support\Facades\Log::info('Stats Request User ID: ' . ($request->user() ? $request->user()->id : 'null'));
+
 
         if (! $request->user() instanceof \App\Models\Examiner) {
             abort(403, 'Unauthorized');

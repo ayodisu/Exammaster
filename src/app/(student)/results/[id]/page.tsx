@@ -73,7 +73,7 @@ export default function ResultDetailPage() {
                 const res = await axios.get(apiUrl(`attempts/${id}/detail`), {
                     headers: getAuthHeaders()
                 });
-                console.log('API Response:', res.data); // Debugging
+
                 setData(res.data);
             } catch (err) {
                 console.error('API Error:', err);
