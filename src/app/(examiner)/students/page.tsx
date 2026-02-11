@@ -8,6 +8,11 @@ import { Search, User as UserIcon, Mail, X, BookOpen, TrendingUp, Award, Clock, 
 
 interface StudentWithStats extends User {
     attempts_count?: number;
+    phone_number?: string;
+    date_of_birth?: string;
+    gender?: string;
+    address?: string;
+    created_at?: string;
 }
 
 export default function StudentsPage() {
@@ -137,8 +142,8 @@ export default function StudentsPage() {
                                         </td>
                                         <td className="p-6">
                                             <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${(student.attempts_count || 0) > 0
-                                                    ? 'bg-emerald-100 text-emerald-700'
-                                                    : 'bg-slate-100 text-slate-500'
+                                                ? 'bg-emerald-100 text-emerald-700'
+                                                : 'bg-slate-100 text-slate-500'
                                                 }`}>
                                                 <BookOpen size={12} /> {student.attempts_count || 0}
                                             </span>
@@ -171,106 +176,123 @@ export default function StudentsPage() {
                             </button>
                         </div>
 
-                        {/* Stats Cards */}
-                        <div className="grid grid-cols-3 gap-4 p-6 border-b border-slate-100 shrink-0">
-                            <div className="bg-indigo-50 rounded-xl p-4 text-center">
-                                <BookOpen className="mx-auto text-indigo-500 mb-1" size={24} />
-                                <div className="text-2xl font-bold text-indigo-700">{submittedAttempts.length}</div>
-                                <div className="text-xs text-indigo-600 font-medium">Exams Taken</div>
+                        <div className="overflow-y-auto flex-1">
+                            {/* Profile Details */}
+                            <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                                <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                                    <UserIcon size={16} /> Profile Details
+                                </h3>
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <span className="block text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">Exam Number</span>
+                                        <span className="font-mono bg-white px-2 py-1 rounded border border-slate-200">{selectedStudent.exam_number}</span>
+                                    </div>
+                                    <div>
+                                        <span className="block text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">Phone</span>
+                                        <span className="font-medium text-slate-700">{selectedStudent.phone_number || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="block text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">Date of Birth</span>
+                                        <span className="font-medium text-slate-700">{selectedStudent.date_of_birth ? new Date(selectedStudent.date_of_birth).toLocaleDateString() : 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="block text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">Gender</span>
+                                        <span className="font-medium text-slate-700 capitalize">{selectedStudent.gender || 'N/A'}</span>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <span className="block text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">Address</span>
+                                        <span className="font-medium text-slate-700">{selectedStudent.address || 'N/A'}</span>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <span className="block text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">Joined On</span>
+                                        <span className="font-medium text-slate-700">{selectedStudent.created_at ? new Date(selectedStudent.created_at).toLocaleDateString() : 'N/A'}</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="bg-amber-50 rounded-xl p-4 text-center">
-                                <TrendingUp className="mx-auto text-amber-500 mb-1" size={24} />
-                                <div className="text-2xl font-bold text-amber-700">{avgScore}%</div>
-                                <div className="text-xs text-amber-600 font-medium">Avg Score</div>
-                            </div>
-                            <div className="bg-emerald-50 rounded-xl p-4 text-center">
-                                <Award className="mx-auto text-emerald-500 mb-1" size={24} />
-                                <div className="text-2xl font-bold text-emerald-700">{passRate}%</div>
-                                <div className="text-xs text-emerald-600 font-medium">Pass Rate</div>
-                            </div>
-                        </div>
 
-                        {/* Attempts List */}
-                        <div className="p-6 overflow-y-auto flex-1">
-                            <h3 className="font-bold text-slate-700 mb-4">Exam History</h3>
-                            {loadingAttempts ? (
-                                <div className="text-center py-8 text-slate-400">
-                                    <Loader2 className="animate-spin mx-auto mb-2" size={24} />
-                                    Loading exam history...
+                            {/* Stats Cards */}
+                            <div className="grid grid-cols-3 gap-4 p-6 border-b border-slate-100 shrink-0">
+                                <div className="bg-indigo-50 rounded-xl p-4 text-center">
+                                    <BookOpen className="mx-auto text-indigo-500 mb-1" size={24} />
+                                    <div className="text-2xl font-bold text-indigo-700">{submittedAttempts.length}</div>
+                                    <div className="text-xs text-indigo-600 font-medium">Exams Taken</div>
                                 </div>
-                            ) : studentAttempts.length === 0 ? (
-                                <div className="text-center py-8 text-slate-400">
-                                    This student has not taken any exams yet.
+                                <div className="bg-amber-50 rounded-xl p-4 text-center">
+                                    <TrendingUp className="mx-auto text-amber-500 mb-1" size={24} />
+                                    <div className="text-2xl font-bold text-amber-700">{avgScore}%</div>
+                                    <div className="text-xs text-amber-600 font-medium">Avg Score</div>
                                 </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {studentAttempts.map(attempt => (
-                                        <div key={attempt.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white hover:shadow-md transition-all">
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <h4 className="font-bold text-slate-800">{attempt.exam?.title || 'Unknown Exam'}</h4>
-                                                    <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
-                                                        <span className="flex items-center gap-1">
-                                                            <Clock size={12} />
-                                                            {attempt.submitted_at
-                                                                ? new Date(attempt.submitted_at).toLocaleDateString()
-                                                                : 'Ongoing'}
-                                                        </span>
-                                                        {attempt.exam?.type && (
-                                                            <span className={`uppercase font-bold px-1.5 py-0.5 rounded ${attempt.exam.type === 'mock' ? 'bg-amber-100 text-amber-700' :
+                                <div className="bg-emerald-50 rounded-xl p-4 text-center">
+                                    <Award className="mx-auto text-emerald-500 mb-1" size={24} />
+                                    <div className="text-2xl font-bold text-emerald-700">{passRate}%</div>
+                                    <div className="text-xs text-emerald-600 font-medium">Pass Rate</div>
+                                </div>
+                            </div>
+
+                            {/* Attempts List */}
+                            <div className="p-6">
+                                <h3 className="font-bold text-slate-700 mb-4">Exam History</h3>
+                                {loadingAttempts ? (
+                                    <div className="text-center py-8 text-slate-400">
+                                        <Loader2 className="animate-spin mx-auto mb-2" size={24} />
+                                        Loading exam history...
+                                    </div>
+                                ) : studentAttempts.length === 0 ? (
+                                    <div className="text-center py-8 text-slate-400">
+                                        This student has not taken any exams yet.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {studentAttempts.map(attempt => (
+                                            <div key={attempt.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white hover:shadow-md transition-all">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <h4 className="font-bold text-slate-800">{attempt.exam?.title || 'Unknown Exam'}</h4>
+                                                        <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
+                                                            <span className="flex items-center gap-1">
+                                                                <Clock size={12} />
+                                                                {attempt.submitted_at
+                                                                    ? new Date(attempt.submitted_at).toLocaleDateString()
+                                                                    : 'Ongoing'}
+                                                            </span>
+                                                            {attempt.exam?.type && (
+                                                                <span className={`uppercase font-bold px-1.5 py-0.5 rounded ${attempt.exam.type === 'mock' ? 'bg-amber-100 text-amber-700' :
                                                                     attempt.exam.type === 'test' ? 'bg-purple-100 text-purple-700' :
                                                                         'bg-indigo-100 text-indigo-700'
-                                                                }`}>
-                                                                {attempt.exam.type}
-                                                            </span>
+                                                                    }`}>
+                                                                    {attempt.exam.type}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        {attempt.status === 'submitted' ? (
+                                                            <>
+                                                                <div className={`text-2xl font-bold ${(attempt.score || 0) >= 50 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                                    {attempt.score}%
+                                                                </div>
+                                                                <span className={`inline-flex items-center gap-1 text-xs font-bold ${(attempt.score || 0) >= 50 ? 'text-emerald-600' : 'text-red-600'
+                                                                    }`}>
+                                                                    {(attempt.score || 0) >= 50 ? <CheckCircle size={12} /> : <XCircle size={12} />}
+                                                                    {(attempt.score || 0) >= 50 ? 'Passed' : 'Failed'}
+                                                                </span>
+                                                            </>
+                                                        ) : (
+                                                            <span className="text-amber-600 font-bold text-sm">Ongoing</span>
                                                         )}
                                                     </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    {attempt.status === 'submitted' ? (
-                                                        <>
-                                                            <div className={`text-2xl font-bold ${(attempt.score || 0) >= 50 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                                                {attempt.score}%
-                                                            </div>
-                                                            <span className={`inline-flex items-center gap-1 text-xs font-bold ${(attempt.score || 0) >= 50 ? 'text-emerald-600' : 'text-red-600'
-                                                                }`}>
-                                                                {(attempt.score || 0) >= 50 ? <CheckCircle size={12} /> : <XCircle size={12} />}
-                                                                {(attempt.score || 0) >= 50 ? 'Passed' : 'Failed'}
-                                                            </span>
-                                                        </>
-                                                    ) : (
-                                                        <span className="text-amber-600 font-bold text-sm">Ongoing</span>
-                                                    )}
-                                                </div>
-                                            </div>
 
-                                            {/* Security Violations */}
-                                            {attempt.violations && attempt.violations.length > 0 && (
-                                                <div className="mt-3 pt-3 border-t border-slate-100">
-                                                    <div className="flex items-center gap-2 mb-2 text-red-600">
-                                                        <AlertTriangle size={14} />
-                                                        <span className="text-xs font-bold">
-                                                            {attempt.violations.length} Security Violation{attempt.violations.length !== 1 ? 's' : ''} Detected
-                                                        </span>
-                                                    </div>
-                                                    <div className="space-y-1 bg-red-50 p-2 rounded-lg border border-red-100">
-                                                        {attempt.violations.map(v => (
-                                                            <div key={v.id} className="text-[10px] sm:text-xs text-red-700 flex items-center justify-between">
-                                                                <span>{v.details || v.type}</span>
-                                                                <span className="text-red-400 font-mono">{new Date(v.occurred_at).toLocaleTimeString()}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                                            </div>
+                                            </div>
+                                    </div>
+                                )}
                         </div>
                     </div>
                 </div>
-            )}
-        </div>
+                </div>
+    )
+}
+        </div >
     );
 }

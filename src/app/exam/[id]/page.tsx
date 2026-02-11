@@ -41,6 +41,20 @@ export default function ExamPage() {
     }, [id]);
 
     if (loading) return <div className="flex h-screen items-center justify-center">Loading Exam...</div>;
+
+    // Check if attempt is already completed
+    if (attempt && (attempt.status === 'submitted' || attempt.status === 'terminated')) {
+        return (
+            <div className="flex flex-col h-screen items-center justify-center space-y-4">
+                <div className="text-2xl font-bold text-slate-800">Assessment Completed</div>
+                <p className="text-slate-600">You have already submitted this assessment.</p>
+                <a href="/results" className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+                    View Results
+                </a>
+            </div>
+        );
+    }
+
     if (error) return <div className="flex h-screen items-center justify-center text-red-600">{error}</div>;
     if (!attempt) return null;
 

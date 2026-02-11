@@ -1,0 +1,16 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Prevent Apache from trying to append index.php, which causes Next.js 404s
+    DirectoryIndex disabled
+
+    # 1. API and Backend Routes -> Forward to Laravel (server/public)
+    RewriteCond %{REQUEST_URI} ^/(api|sanctum|storage|_ignition|up) [NC]
+    RewriteRule ^(.*)$ server/public/$1 [L]
+
+    # 2. Everything else -> Proxy to Next.js (Safe Check)
+    <IfModule mod_proxy.c>
+        RewriteRule ^(.*)$ http://localhost:3000/$1 [P,L]
+        # ProxyPassReverse is NOT allowed in .htaccess, so we remove it.
+        # The RewriteRule [P] flag handles the forward proxying.
+    </IfModule>
+</IfModule>

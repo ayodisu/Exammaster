@@ -6,6 +6,9 @@ export interface User {
     exam_number?: string;
     phone_number?: string;
     address?: string;
+    date_of_birth?: string;
+    gender?: string;
+    created_at?: string;
     email: string;
     role: 'student' | 'examiner' | 'candidate';
 }
@@ -62,7 +65,7 @@ export interface Attempt {
     id: number;
     student_id: number;
     exam_id: number;
-    status: 'ongoing' | 'submitted';
+    status: 'ongoing' | 'submitted' | 'terminated';
     score?: number;
     started_at: string;
     submitted_at?: string;

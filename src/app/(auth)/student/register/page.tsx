@@ -11,7 +11,7 @@ import Link from 'next/link';
 export default function CandidateRegisterPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
-    
+
     const [formData, setFormData] = useState({
         first_name: '',
         last_name: '',
@@ -37,7 +37,7 @@ export default function CandidateRegisterPage() {
             const res = await axios.post(apiUrl('candidate/register'), formData);
             localStorage.setItem(STORAGE_KEYS.TOKEN, res.data.token);
             // Force a full reload to ensure auth state is picked up by all components
-            window.location.href = '/exams';
+            window.location.href = '/student-dashboard';
         } catch (err) {
             if (axios.isAxiosError(err)) {
                 if (err.response) {
@@ -59,12 +59,12 @@ export default function CandidateRegisterPage() {
 
     return (
         <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-             <div className="max-w-4xl w-full bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row">
-                
+            <div className="max-w-4xl w-full bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row">
+
                 {/* Side Info */}
                 <div className="bg-blue-600 p-8 md:p-12 text-white md:w-1/3 flex flex-col justify-between">
                     <div>
-                         <Link href="/" className="text-blue-200 hover:text-white flex items-center gap-1 text-sm font-medium mb-8">
+                        <Link href="/" className="text-blue-200 hover:text-white flex items-center gap-1 text-sm font-medium mb-8">
                             <ArrowLeft size={16} /> Back
                         </Link>
                         <h2 className="text-3xl font-bold mb-4">Join {APP_NAME}</h2>
@@ -96,16 +96,16 @@ export default function CandidateRegisterPage() {
                         </div>
 
                         <div className="md:col-span-2">
-                             <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
                             <input name="email" type="email" required onChange={handleChange} className="input-field" placeholder="john@example.com" />
                         </div>
 
                         <div className="md:col-span-1">
-                             <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
                             <input name="phone_number" required onChange={handleChange} className="input-field" placeholder="+1234567890" />
                         </div>
-                         <div className="md:col-span-1">
-                             <label className="block text-sm font-medium text-slate-700 mb-1">Date of Birth</label>
+                        <div className="md:col-span-1">
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Date of Birth</label>
                             <input name="date_of_birth" type="date" onChange={handleChange} className="input-field" />
                         </div>
 
@@ -118,24 +118,24 @@ export default function CandidateRegisterPage() {
                             </select>
                         </div>
 
-                         <div className="md:col-span-2">
-                             <label className="block text-sm font-medium text-slate-700 mb-1">Create Password</label>
+                        <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Create Password</label>
                             <input name="password" type="password" required onChange={handleChange} className="input-field" placeholder="••••••••" />
                             <p className="text-xs text-slate-500 mt-1">Must be at least 8 chars, with uppercase, number & symbol.</p>
                         </div>
-                         <div className="md:col-span-2">
-                             <label className="block text-sm font-medium text-slate-700 mb-1">Confirm Password</label>
+                        <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Confirm Password</label>
                             <input name="password_confirmation" type="password" required onChange={handleChange} className="input-field" placeholder="••••••••" />
                         </div>
 
-                         <div className="md:col-span-2">
-                             <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
+                        <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
                             <textarea name="address" required onChange={handleChange} className="input-field min-h-[80px]" placeholder="123 Main St, City"></textarea>
                         </div>
 
                         <div className="md:col-span-2 mt-4">
-                            <button 
-                                type="submit" 
+                            <button
+                                type="submit"
                                 disabled={isLoading}
                                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg active:scale-95 flex justify-center items-center"
                             >
@@ -143,12 +143,12 @@ export default function CandidateRegisterPage() {
                             </button>
                         </div>
                     </form>
-                     <p className="text-center text-slate-500 text-sm mt-4 md:col-span-2">
+                    <p className="text-center text-slate-500 text-sm mt-4 md:col-span-2">
                         Already have an account? <Link href="/student/login" className="text-blue-600 font-bold hover:underline">Login here</Link>
                     </p>
                 </div>
-             </div>
-             <style jsx>{`
+            </div>
+            <style jsx>{`
                 .input-field {
                     width: 100%;
                     padding: 0.75rem 1rem;

@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ExamController;
-use App\Http\Controllers\ProctoringController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -36,7 +35,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/assessments/{id}/attempts', [App\Http\Controllers\ExamController::class, 'getAttempts']);
     Route::post('/assessments/{id}/questions/import', [ExamController::class, 'importQuestions']);
     Route::post('/questions/bulk-delete', [ExamController::class, 'deleteQuestions']); // NEW Route
-    Route::post('/questions', [ExamController::class, 'addQuestion']);
+    Route::post('/assessments/{id}/questions', [ExamController::class, 'addQuestion']);
     Route::put('/questions/{id}', [ExamController::class, 'updateQuestion']);
     Route::delete('/questions/{id}', [ExamController::class, 'deleteQuestion']);
 
@@ -45,8 +44,4 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/attempts/{attemptId}/save', [ExamController::class, 'saveAnswer']);
     Route::post('/attempts/{attemptId}/finish', [ExamController::class, 'finish']);
     Route::get('/attempts', [ExamController::class, 'userAttempts']);
-
-    // Proctoring
-    Route::get('/violations', [ProctoringController::class, 'index']);
-    Route::post('/violations', [ProctoringController::class, 'logViolation']);
 });

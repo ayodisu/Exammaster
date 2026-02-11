@@ -12,8 +12,7 @@ export default function ExaminerLayout({ children }: { children: React.ReactNode
         { label: 'Calendar', href: '/admin/calendar', icon: Calendar },
         { label: 'Stats', href: '/admin/stats', icon: BarChart2 },
         { label: 'Students', href: '/students', icon: Users },
-        { label: 'Live Monitor', href: '/live-monitor', icon: Activity },
-        { label: 'Violations', href: '/violations', icon: AlertTriangle },
+        { label: 'Students', href: '/students', icon: Users },
     ];
 
     return (

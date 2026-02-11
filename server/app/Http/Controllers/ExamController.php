@@ -135,9 +135,6 @@ class ExamController extends Controller
             foreach ($attempts as $attempt) {
                 $uniqueStudentIds[$attempt->student_id] = true;
 
-                // Calculate duration based on submitted_at - started_at
-                // Or simplified if we tracked time_spent in responses
-                // For now, let's just use exam duration if full time used, or attempts diff
                 $start = Carbon::parse($attempt->started_at);
                 $end = Carbon::parse($attempt->submitted_at);
                 $totalDurations += $end->diffInMinutes($start);
@@ -160,7 +157,7 @@ class ExamController extends Controller
 
         $attempt = Attempt::where('student_id', $user->id)
             ->where('exam_id', $exam->id)
-            ->where('status', 'ongoing')
+            // ->where('status', 'ongoing') // REMOVED: Check for ANY attempt to prevent duplicates
             ->first();
 
         if (!$attempt) {
@@ -326,7 +323,7 @@ class ExamController extends Controller
 
         $count = 0;
         while (($row = fgetcsv($handle)) !== false) {
-            // Expected Format: 
+            // Expected Format:
             // 0: Text, 1: Type (mcq/tf), 2: OptA, 3: OptB, 4: OptC, 5: OptD, 6: Correct (A/B/C/D)
 
             if (count($row) < 7) continue;
@@ -399,7 +396,7 @@ class ExamController extends Controller
     {
         if (! $request->user() instanceof \App\Models\Examiner) abort(403);
 
-        // Find question via Exam to ensure ownership? 
+        // Find question via Exam to ensure ownership?
         // Or just find question and check exam ownership.
         $question = Question::findOrFail($id);
         $exam = $request->user()->exams()->findOrFail($question->exam_id);
@@ -443,8 +440,8 @@ class ExamController extends Controller
         $ids = $request->ids;
 
         // Verify ownership: Ensure all questions belong to exams owned by this examiner
-        // This is a bit expensive to check individually. 
-        // We can just fetch them and check ownership. 
+        // This is a bit expensive to check individually.
+        // We can just fetch them and check ownership.
         // Or simply: DELETE FROM questions WHERE id IN (...) AND exam_id IN (SELECT id FROM exams WHERE examiner_id = ?)
 
         $examinerId = $request->user()->id;
