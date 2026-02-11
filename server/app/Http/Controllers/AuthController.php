@@ -14,7 +14,7 @@ class AuthController extends Controller
         $validated = $request->validate([
             'first_name' => 'required|string|min:2|max:50|regex:/^[a-zA-Z\s\-' . "']" . '+$/',
             'last_name' => 'required|string|min:2|max:50|regex:/^[a-zA-Z\s\-' . "']" . '+$/',
-            'email' => 'required|email:rfc,dns|max:255|unique:candidates',
+            'email' => 'required|email:rfc|max:255|unique:candidates',
             'password' => ['required', 'confirmed', \Illuminate\Validation\Rules\Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
             'phone_number' => 'required|string|regex:/^[\+]?[0-9]{7,15}$/',
             'date_of_birth' => 'nullable|date|before:today',

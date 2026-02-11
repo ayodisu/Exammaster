@@ -14,13 +14,15 @@ interface QuestionBreakdown {
     question_id: number;
     question_text: string;
     question_type: string;
-    options: string[] | null;
+    options: { id: string; text: string }[] | string[] | null;
     correct_answer: string;
     student_answer: string | null;
     is_correct: boolean;
     time_spent_seconds: number;
     explanation: string | null;
 }
+
+
 
 interface TypeStat {
     type: string;
@@ -71,8 +73,10 @@ export default function ResultDetailPage() {
                 const res = await axios.get(apiUrl(`attempts/${id}/detail`), {
                     headers: getAuthHeaders()
                 });
+                console.log('API Response:', res.data); // Debugging
                 setData(res.data);
-            } catch {
+            } catch (err) {
+                console.error('API Error:', err);
                 setError('Failed to load result details.');
             } finally {
                 setLoading(false);
@@ -221,10 +225,13 @@ export default function ResultDetailPage() {
                                     {/* Options display for MCQ/TF */}
                                     {q.options && (
                                         <div className="space-y-1.5 mb-3">
-                                            {q.options.map((option, optIndex) => {
+                                            {q.options.map((option: { id: string; text: string } | string, optIndex: number) => {
                                                 const optionLetter = String.fromCharCode(65 + optIndex);
-                                                const isCorrectOption = q.correct_answer === optionLetter || q.correct_answer === option;
-                                                const isStudentPick = q.student_answer === optionLetter || q.student_answer === option;
+                                                const optionText = typeof option === 'string' ? option : option.text;
+                                                const optionId = typeof option === 'string' ? option : option.id;
+
+                                                const isCorrectOption = q.correct_answer === optionLetter || q.correct_answer === optionId || q.correct_answer === optionText;
+                                                const isStudentPick = q.student_answer === optionLetter || q.student_answer === optionId || q.student_answer === optionText;
 
                                                 return (
                                                     <div
@@ -236,7 +243,7 @@ export default function ResultDetailPage() {
                                                         `}
                                                     >
                                                         <span className="font-bold text-xs w-5">{optionLetter}.</span>
-                                                        <span className="flex-1">{option}</span>
+                                                        <span className="flex-1">{optionText}</span>
                                                         {isCorrectOption && <CheckCircle size={14} className="text-emerald-600 shrink-0" />}
                                                         {isStudentPick && !isCorrectOption && <XCircle size={14} className="text-red-600 shrink-0" />}
                                                     </div>
