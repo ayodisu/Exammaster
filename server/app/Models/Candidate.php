@@ -64,8 +64,6 @@ class Candidate extends Authenticatable implements MustVerifyEmail, CanResetPass
      */
     public function sendPasswordResetNotification($token)
     {
-        $url = config('app.url') . '/student/reset-password?token=' . $token . '&email=' . urlencode($this->email);
-
-        $this->notify(new \Illuminate\Auth\Notifications\ResetPassword($url));
+        $this->notify(new \App\Notifications\ResetCandidatePassword($token));
     }
 }
