@@ -150,6 +150,16 @@ export default function CandidateLoginPage() {
                         />
                     </div>
 
+                    <div className="flex items-center justify-between mb-6">
+                        <label className="flex items-center">
+                            <input type="checkbox" className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
+                            <span className="ml-2 text-sm text-gray-600">Remember me</span>
+                        </label>
+                        <Link href="/student/forgot-password" className="text-sm font-medium text-blue-600 hover:text-blue-500 hover:underline">
+                            Forgot password?
+                        </Link>
+                    </div>
+
                     <button
                         type="submit"
                         disabled={isLoading}

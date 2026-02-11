@@ -11,39 +11,45 @@ class EmailVerificationController extends Controller
 {
     public function verify(Request $request, $id, $hash)
     {
-        $frontendUrl = env('FRONTEND_URL', 'http://localhost:3000');
         $candidate = Candidate::find($id);
 
         if (!$candidate || ! hash_equals((string) $hash, sha1($candidate->getEmailForVerification()))) {
-            return redirect($frontendUrl . '/verify-success?error=invalid');
+            return response()->json(['message' => 'Invalid or expired verification link.'], 403);
         }
 
         if ($candidate->hasVerifiedEmail()) {
-            return redirect($frontendUrl . '/verify-success?error=already_verified');
+            // If already verified, still return success so the user can be logged in or redirected
+            return response()->json([
+                'message' => 'Email already verified.',
+                'verified' => true,
+                'already_verified' => true
+            ], 200);
         }
 
         $candidate->markEmailAsVerified();
 
-        // Send welcome email with profile details
+        // Send welcome email
         try {
             $candidate->notify(new WelcomeNotification());
         } catch (\Exception $e) {
-            // Log but don't block verification
             Log::error('Failed to send welcome email: ' . $e->getMessage());
         }
 
-        // Auto-login: create a token so the frontend can redirect to dashboard
+        // Auto-login token
         $token = $candidate->createToken('candidate-token')->plainTextToken;
 
-        $userData = base64_encode(json_encode([
-            'id' => $candidate->id,
-            'name' => $candidate->first_name . ' ' . $candidate->last_name,
-            'email' => $candidate->email,
-            'exam_number' => $candidate->exam_number,
-            'role' => 'student'
-        ]));
-
-        return redirect($frontendUrl . '/verify-success?token=' . $token . '&user=' . $userData);
+        return response()->json([
+            'message' => 'Email verified successfully!',
+            'verified' => true,
+            'token' => $token,
+            'user' => [
+                'id' => $candidate->id,
+                'name' => $candidate->first_name . ' ' . $candidate->last_name,
+                'email' => $candidate->email,
+                'exam_number' => $candidate->exam_number,
+                'role' => 'student'
+            ]
+        ], 200);
     }
 
     public function resend(Request $request)

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { apiUrl, APP_NAME } from '@/config/api';
 
@@ -75,19 +75,30 @@ export default function CandidateRegisterPage() {
         }
     };
 
+    useEffect(() => {
+        console.log('CandidateRegisterPage mounted');
+    }, []);
+
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
+        console.log('handleRegister called');
 
-        if (!validate()) return;
+        if (!validate()) {
+            console.log('Validation failed', fieldErrors);
+            return;
+        }
 
         setIsLoading(true);
         setError('');
 
         try {
+            console.log('Sending registration request...');
             await axios.post(apiUrl('candidate/register'), formData);
+            console.log('Registration successful, setting modal state');
             setRegisteredEmail(formData.email);
             setRegistrationComplete(true);
         } catch (err) {
+            console.error('Registration error:', err);
             if (axios.isAxiosError(err)) {
                 if (err.response) {
                     if (err.response.status === 422 && err.response.data.errors) {

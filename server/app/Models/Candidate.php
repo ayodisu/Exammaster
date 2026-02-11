@@ -8,9 +8,12 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-class Candidate extends Authenticatable implements MustVerifyEmail
+use Illuminate\Auth\Passwords\CanResetPassword;
+use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
+
+class Candidate extends Authenticatable implements MustVerifyEmail, CanResetPasswordContract
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, CanResetPassword;
 
     protected $fillable = [
         'exam_number',
@@ -51,5 +54,18 @@ class Candidate extends Authenticatable implements MustVerifyEmail
     public function attempts()
     {
         return $this->hasMany(Attempt::class, 'student_id');
+    }
+
+    /**
+     * Send the password reset notification.
+     *
+     * @param  string  $token
+     * @return void
+     */
+    public function sendPasswordResetNotification($token)
+    {
+        $url = config('app.url') . '/student/reset-password?token=' . $token . '&email=' . urlencode($this->email);
+
+        $this->notify(new \Illuminate\Auth\Notifications\ResetPassword($url));
     }
 }

@@ -16,6 +16,10 @@ Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 've
     ->name('verification.verify');
 Route::post('/email/resend', [EmailVerificationController::class, 'resend']);
 
+// Password Reset Routes
+Route::post('/password/email', [App\Http\Controllers\ForgotPasswordController::class, 'sendResetLinkEmail']);
+Route::post('/password/reset', [App\Http\Controllers\ResetPasswordController::class, 'reset']);
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', function (Request $request) {
