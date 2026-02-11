@@ -41,24 +41,7 @@ export default function StudentExamsPage() {
             }
         };
 
-        const fetchUpdates = async () => {
-            try {
-                const res = await axios.get(apiUrl('assessments'), { headers });
-                setExams(res.data);
-            } catch (err: unknown) {
-                console.error("Polling failed", err);
-                if (err instanceof Error && 'response' in err) {
-                    const axiosErr = err as { response?: { status?: number } };
-                    if (axiosErr.response?.status === 401) {
-                        router.push('/');
-                    }
-                }
-            }
-        };
-
         fetchInitialData();
-        const intervalId = setInterval(fetchUpdates, 10000);
-        return () => clearInterval(intervalId);
     }, [router]);
 
     if (!user) return <div className="p-8 text-center">Loading assessments...</div>;
@@ -108,8 +91,8 @@ export default function StudentExamsPage() {
                                         </div>
                                         <div className="flex gap-3 mt-2 text-sm font-medium text-slate-500">
                                             <span className={`px-2 py-0.5 rounded uppercase font-bold text-[10px] tracking-wider ${exam.type === 'mock' ? 'bg-amber-100 text-amber-700' :
-                                                    exam.type === 'test' ? 'bg-purple-100 text-purple-700' :
-                                                        'bg-blue-100 text-blue-700'
+                                                exam.type === 'test' ? 'bg-purple-100 text-purple-700' :
+                                                    'bg-blue-100 text-blue-700'
                                                 }`}>
                                                 {exam.type}
                                             </span>

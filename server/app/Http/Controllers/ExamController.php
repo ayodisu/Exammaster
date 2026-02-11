@@ -153,20 +153,33 @@ class ExamController extends Controller
     public function start(Request $request, $id)
     {
         $exam = Exam::findOrFail($id);
+        
+        if (!$exam->is_active) {
+            return response()->json(['message' => 'This exam is not currently active.'], 403);
+        }
+
         $user = $request->user();
 
-        $attempt = Attempt::where('student_id', $user->id)
-            ->where('exam_id', $exam->id)
-            // ->where('status', 'ongoing') // REMOVED: Check for ANY attempt to prevent duplicates
-            ->first();
-
-        if (!$attempt) {
-            $attempt = Attempt::create([
-                'student_id' => $user->id,
-                'exam_id' => $exam->id,
-                'started_at' => Carbon::now(),
-                'status' => 'ongoing',
-            ]);
+        try {
+            $attempt = Attempt::firstOrCreate(
+                [
+                    'student_id' => $user->id,
+                    'exam_id' => $exam->id
+                ],
+                [
+                    'started_at' => Carbon::now(),
+                    'status' => 'ongoing',
+                ]
+            );
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Handle race condition: If insertion fails due to duplicate entry, fetch the existing attempt
+            if ($e->errorInfo[1] == 1062) {
+                $attempt = Attempt::where('student_id', $user->id)
+                    ->where('exam_id', $exam->id)
+                    ->firstOrFail();
+            } else {
+                throw $e;
+            }
         }
 
         // Load exam without questions first
@@ -457,6 +470,18 @@ class ExamController extends Controller
             ->delete();
 
         return response()->json(['message' => "Deleted {$deletedCount} questions"]);
+    }
+
+    public function deleteAttempt(Request $request, $examId, $attemptId)
+    {
+        if (! $request->user() instanceof \App\Models\Examiner) abort(403);
+
+        $exam = $request->user()->exams()->findOrFail($examId);
+        $attempt = Attempt::where('exam_id', $exam->id)->findOrFail($attemptId);
+
+        $attempt->delete();
+
+        return response()->json(['message' => 'Attempt deleted successfully']);
     }
 
     public function destroy(Request $request, $id)

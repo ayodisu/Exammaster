@@ -41,27 +41,7 @@ export default function StudentDashboard() {
             }
         };
 
-        const fetchUpdates = async () => {
-            try {
-                // Get fresh headers for each poll
-                const currentHeaders = getAuthHeaders();
-                const res = await axios.get(apiUrl('assessments'), { headers: currentHeaders });
-                setExams(res.data);
-            } catch (err: unknown) {
-                console.error("Polling failed", err);
-                if (err instanceof Error && 'response' in err) {
-                    const axiosErr = err as { response?: { status?: number } };
-                    if (axiosErr.response?.status === 401) {
-                        // Token likely expired
-                        router.push('/');
-                    }
-                }
-            }
-        };
-
         fetchInitialData();
-        const intervalId = setInterval(fetchUpdates, 10000);
-        return () => clearInterval(intervalId);
     }, [router]);
 
     if (!user) return <div className="p-8 text-center">Loading dashboard...</div>;
@@ -72,25 +52,19 @@ export default function StudentDashboard() {
 
     const pendingExamsCount = exams.filter(e => e.is_active && !results.some(r => r.exam_id === e.id)).length;
 
-    // Filter available and upcoming assessments
-    // Include: Active exams not yet taken (or mock), OR scheduled exams
     const availableAssessments = exams.filter(exam => {
         const hasTaken = results.some(r => r.exam_id === exam.id);
 
-        // If already taken, only allow retaking if it is a mock exam AND it is active
         if (hasTaken) {
             return exam.type === 'mock' && exam.is_active;
         }
 
-        // Show scheduled (future) exams
         if (exam.is_scheduled) return true;
 
-        // Show active exams
         if (exam.is_active) return true;
 
         return false;
     }).sort((a, b) => {
-        // Sort active exams to top
         if (a.is_active && !b.is_active) return -1;
         if (!a.is_active && b.is_active) return 1;
         return 0;

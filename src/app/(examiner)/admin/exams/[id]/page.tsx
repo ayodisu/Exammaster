@@ -23,7 +23,16 @@ export default function ExamDetailPage() {
     const [filter, setFilter] = useState('');
 
     // Alert State
-    const [alertState, setAlertState] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({
+    const [alertState, setAlertState] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        type: 'success' | 'error' | 'info' | 'warning';
+        onConfirm?: () => void;
+        confirmText?: string;
+        cancelText?: string;
+        loading?: boolean;
+    }>({
         isOpen: false, title: '', message: '', type: 'info'
     });
 
@@ -495,7 +504,7 @@ export default function ExamDetailPage() {
                                 </tr>
                             ) : (
                                 filteredAttempts.map((attempt) => (
-                                    <tr key={attempt.id} className="hover:bg-slate-50 transition-colors">
+                                    <tr key={attempt.id} className="hover:bg-slate-50 transition-colors group">
                                         <td className="px-6 py-4">
                                             <div className="font-bold text-slate-800">{attempt.student?.name || 'Unknown'}</div>
                                             <div className="text-xs text-slate-400">{attempt.student?.email}</div>
@@ -514,19 +523,48 @@ export default function ExamDetailPage() {
                                             ) : '-'}
                                         </td>
                                         <td className="px-6 py-4">
-                                            {attempt.status === 'submitted' ? (
-                                                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${(attempt.score || 0) >= 50
-                                                    ? 'bg-emerald-100 text-emerald-700'
-                                                    : 'bg-red-100 text-red-700'
-                                                    }`}>
-                                                    {(attempt.score || 0) >= 50 ? <CheckCircle size={12} /> : <XCircle size={12} />}
-                                                    {(attempt.score || 0) >= 50 ? 'Passed' : 'Failed'}
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">
-                                                    On Going
-                                                </span>
-                                            )}
+                                            <div className="flex items-center justify-between">
+                                                {attempt.status === 'submitted' ? (
+                                                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${(attempt.score || 0) >= 50
+                                                        ? 'bg-emerald-100 text-emerald-700'
+                                                        : 'bg-red-100 text-red-700'
+                                                        }`}>
+                                                        {(attempt.score || 0) >= 50 ? <CheckCircle size={12} /> : <XCircle size={12} />}
+                                                        {(attempt.score || 0) >= 50 ? 'Passed' : 'Failed'}
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">
+                                                        On Going
+                                                    </span>
+                                                )}
+
+                                                <button
+                                                    onClick={() => {
+                                                        setAlertState({
+                                                            isOpen: true,
+                                                            title: 'Confirm Retake',
+                                                            message: `Are you sure you want to allow ${attempt.student?.name} to retake? This will PERMANENTLY DELETE their current attempt and score.`,
+                                                            type: 'warning',
+                                                            confirmText: 'Yes, Allow Retake',
+                                                            cancelText: 'Cancel',
+                                                            onConfirm: () => {
+                                                                axios.delete(apiUrl(`assessments/${exam?.id}/attempts/${attempt.id}`), {
+                                                                    headers: getAuthHeaders()
+                                                                }).then(() => {
+                                                                    setAttempts(prev => prev.filter(a => a.id !== attempt.id));
+                                                                    setAlertState({ isOpen: true, title: 'Success', message: 'Attempt reset. Student can now retake the exam.', type: 'success' });
+                                                                }).catch(err => {
+                                                                    console.error(err);
+                                                                    setAlertState({ isOpen: true, title: 'Error', message: 'Failed to reset attempt.', type: 'error' });
+                                                                });
+                                                            }
+                                                        });
+                                                    }}
+                                                    className="opacity-0 group-hover:opacity-100 px-3 py-1 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-all"
+                                                >
+                                                    Retake
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
