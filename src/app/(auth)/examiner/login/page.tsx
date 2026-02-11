@@ -17,8 +17,19 @@ export default function ExaminerLoginPage() {
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsLoading(true);
+
         setError('');
+        if (!email || !password) {
+            setError('Please enter both email and password.');
+            return;
+        }
+
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            setError('Please enter a valid email address.');
+            return;
+        }
+
+        setIsLoading(true);
 
         try {
             const res = await axios.post(apiUrl('examiner/login'), {
@@ -30,7 +41,11 @@ export default function ExaminerLoginPage() {
             router.push('/dashboard');
         } catch (err) {
             if (axios.isAxiosError(err) && err.response) {
-                setError(err.response.data.message || 'Login failed. Please check your credentials.');
+                if (err.response.status === 422 && err.response.data.errors) {
+                    setError(Object.values(err.response.data.errors).flat().join(' '));
+                } else {
+                    setError(err.response.data.message || 'Login failed. Please check your credentials.');
+                }
             } else {
                 setError('An unexpected error occurred.');
             }
@@ -43,8 +58,8 @@ export default function ExaminerLoginPage() {
         <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
             <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-600"></div>
-                
-                 <Link href="/" className="text-slate-400 hover:text-slate-600 flex items-center gap-1 text-sm font-medium mb-8">
+
+                <Link href="/" className="text-slate-400 hover:text-slate-600 flex items-center gap-1 text-sm font-medium mb-8">
                     <ArrowLeft size={16} /> Back to Home
                 </Link>
 
@@ -65,19 +80,19 @@ export default function ExaminerLoginPage() {
                 <form onSubmit={handleLogin} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                        <input 
-                            type="email" 
+                        <input
+                            type="email"
                             required
                             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                         />
                     </div>
-                    
+
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-                        <input 
-                            type="password" 
+                        <input
+                            type="password"
                             required
                             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                             value={password}
@@ -85,8 +100,8 @@ export default function ExaminerLoginPage() {
                         />
                     </div>
 
-                    <button 
-                        type="submit" 
+                    <button
+                        type="submit"
                         disabled={isLoading}
                         className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-200 flex justify-center items-center mt-4"
                     >
@@ -94,7 +109,7 @@ export default function ExaminerLoginPage() {
                     </button>
                 </form>
             </div>
-            
+
             <div className="absolute bottom-8 text-slate-600 text-xs">
                 Restricted Access Area • {APP_NAME}
             </div>

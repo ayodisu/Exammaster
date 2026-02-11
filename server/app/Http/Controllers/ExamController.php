@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Attempt;
+use App\Models\Candidate;
 use App\Models\Exam;
 use App\Models\Question;
 use App\Models\Response;
+use App\Notifications\ExamDueNotification;
+use App\Notifications\ExamResultNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -62,15 +65,15 @@ class ExamController extends Controller
         }
 
         $validated = $request->validate([
-            'title' => 'required|string',
-            'duration_minutes' => 'required|integer',
+            'title' => 'required|string|max:255',
+            'duration_minutes' => 'required|integer|min:1|max:600',
             'type' => 'required|in:exam,mock,test',
-            'scheduled_at' => 'nullable|date',
+            'scheduled_at' => 'nullable|date|after_or_equal:now',
             'settings_json' => 'nullable|array',
             'questions' => 'nullable|array',
-            'questions.*.text' => 'required|string',
-            'questions.*.type' => 'required|string',
-            'questions.*.options' => 'required|array',
+            'questions.*.text' => 'required|string|max:5000',
+            'questions.*.type' => 'required|string|in:mcq,tf',
+            'questions.*.options' => 'required|array|min:2',
             'questions.*.correct_answer' => 'required|string',
         ]);
 
@@ -262,6 +265,16 @@ class ExamController extends Controller
             'score' => $score
         ]);
 
+        // Send result notification email
+        try {
+            $student = $attempt->student;
+            if ($student) {
+                $student->notify(new ExamResultNotification($attempt->exam, $score));
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to send result email: ' . $e->getMessage());
+        }
+
         return response()->json([
             'message' => 'Exam submitted successfully',
             'score' => $score
@@ -278,6 +291,80 @@ class ExamController extends Controller
             ->get();
     }
 
+    public function attemptDetail(Request $request, $attemptId)
+    {
+        $attempt = Attempt::with(['exam' => function ($q) {
+            $q->withTrashed()->with('questions');
+        }, 'responses.question'])
+            ->where('student_id', $request->user()->id)
+            ->findOrFail($attemptId);
+
+        $questions = $attempt->exam->questions;
+        $responses = $attempt->responses->keyBy('question_id');
+
+        $breakdown = $questions->map(function ($question) use ($responses) {
+            $response = $responses->get($question->id);
+            return [
+                'question_id' => $question->id,
+                'question_text' => $question->text,
+                'question_type' => $question->type,
+                'options' => $question->options_json,
+                'correct_answer' => $question->correct_answer,
+                'student_answer' => $response ? $response->student_answer : null,
+                'is_correct' => $response ? $response->is_correct : false,
+                'time_spent_seconds' => $response ? $response->time_spent_seconds : 0,
+                'explanation' => $question->explanation,
+            ];
+        });
+
+        $totalQuestions = $questions->count();
+        $answered = $breakdown->filter(fn($b) => $b['student_answer'] !== null)->count();
+        $correct = $breakdown->filter(fn($b) => $b['is_correct'])->count();
+        $incorrect = $answered - $correct;
+        $unanswered = $totalQuestions - $answered;
+        $totalTimeSpent = $breakdown->sum('time_spent_seconds');
+        $avgTimePerQuestion = $totalQuestions > 0 ? round($totalTimeSpent / $totalQuestions) : 0;
+
+        // Accuracy by question type
+        $typeStats = $breakdown->groupBy('question_type')->map(function ($group, $type) {
+            $total = $group->count();
+            $correctCount = $group->filter(fn($b) => $b['is_correct'])->count();
+            return [
+                'type' => $type,
+                'total' => $total,
+                'correct' => $correctCount,
+                'accuracy' => $total > 0 ? round(($correctCount / $total) * 100) : 0,
+            ];
+        })->values();
+
+        return response()->json([
+            'attempt' => [
+                'id' => $attempt->id,
+                'score' => $attempt->score,
+                'status' => $attempt->status,
+                'started_at' => $attempt->started_at,
+                'submitted_at' => $attempt->submitted_at,
+            ],
+            'exam' => [
+                'id' => $attempt->exam->id,
+                'title' => $attempt->exam->title,
+                'type' => $attempt->exam->type,
+                'duration_minutes' => $attempt->exam->duration_minutes,
+            ],
+            'summary' => [
+                'total_questions' => $totalQuestions,
+                'answered' => $answered,
+                'correct' => $correct,
+                'incorrect' => $incorrect,
+                'unanswered' => $unanswered,
+                'total_time_spent_seconds' => $totalTimeSpent,
+                'avg_time_per_question_seconds' => $avgTimePerQuestion,
+                'type_stats' => $typeStats,
+            ],
+            'breakdown' => $breakdown->values(),
+        ]);
+    }
+
     public function toggleStatus(Request $request, $id)
     {
         if (! $request->user() instanceof \App\Models\Examiner) {
@@ -291,8 +378,25 @@ class ExamController extends Controller
         // When manually enabling, set enabled_at for 1hr window tracking
         $exam->update([
             'is_active' => $newActiveState,
-            'enabled_at' => $newActiveState ? \Illuminate\Support\Carbon::now() : null
+            'enabled_at' => $newActiveState ? Carbon::now() : null
         ]);
+
+        // Notify students who haven't taken this exam when it is activated
+        if ($newActiveState) {
+            $takenStudentIds = Attempt::where('exam_id', $exam->id)->pluck('student_id');
+            /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\Candidate> $candidates */
+            $candidates = Candidate::whereNotIn('id', $takenStudentIds)
+                ->whereNotNull('email_verified_at')
+                ->get();
+
+            foreach ($candidates as $candidate) {
+                try {
+                    $candidate->notify(new ExamDueNotification($exam));
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning('Failed to send exam notification to candidate #' . $candidate->id . ': ' . $e->getMessage());
+                }
+            }
+        }
 
         return response()->json($exam);
     }
@@ -330,16 +434,15 @@ class ExamController extends Controller
         $exam = $request->user()->exams()->findOrFail($id);
         $file = $request->file('file');
 
-        // Use simple fopen for CSV
         $handle = fopen($file->getPathname(), 'r');
-        $header = fgetcsv($handle); // Skip header row
+        $header = fgetcsv($handle);
 
         $count = 0;
         while (($row = fgetcsv($handle)) !== false) {
             // Expected Format:
             // 0: Text, 1: Type (mcq/tf), 2: OptA, 3: OptB, 4: OptC, 5: OptD, 6: Correct (A/B/C/D)
 
-            if (count($row) < 7) continue;
+            if (count($row) < 7 || empty($row[0])) continue; // Check for minimum columns and non-empty question text
 
             $text = $row[0];
             $type = strtolower($row[1]);
@@ -394,10 +497,10 @@ class ExamController extends Controller
         $exam = $request->user()->exams()->findOrFail($id);
 
         $validated = $request->validate([
-            'text' => 'required|string',
+            'text' => 'required|string|max:5000',
             'type' => 'required|in:mcq,tf',
-            'options_json' => 'required|array',
-            'correct_answer' => 'required|string',
+            'options_json' => 'required|array|min:2',
+            'correct_answer' => 'required|string|max:1000',
         ]);
 
         $question = $exam->questions()->create($validated);
@@ -409,16 +512,14 @@ class ExamController extends Controller
     {
         if (! $request->user() instanceof \App\Models\Examiner) abort(403);
 
-        // Find question via Exam to ensure ownership?
-        // Or just find question and check exam ownership.
         $question = Question::findOrFail($id);
         $exam = $request->user()->exams()->findOrFail($question->exam_id);
 
         $validated = $request->validate([
-            'text' => 'required|string',
+            'text' => 'required|string|max:5000',
             'type' => 'required|in:mcq,tf',
-            'options_json' => 'required|array',
-            'correct_answer' => 'required|string',
+            'options_json' => 'required|array|min:2',
+            'correct_answer' => 'required|string|max:1000',
         ]);
 
         $question->update($validated);
@@ -433,8 +534,7 @@ class ExamController extends Controller
         $question = Question::findOrFail($id);
         $exam = $request->user()->exams()->findOrFail($question->exam_id);
 
-        // Manually delete related responses since FK is not CASCADE
-        \App\Models\Response::where('question_id', $question->id)->delete();
+        Response::where('question_id', $question->id)->delete();
 
         $question->delete();
 
@@ -452,17 +552,10 @@ class ExamController extends Controller
 
         $ids = $request->ids;
 
-        // Verify ownership: Ensure all questions belong to exams owned by this examiner
-        // This is a bit expensive to check individually.
-        // We can just fetch them and check ownership.
-        // Or simply: DELETE FROM questions WHERE id IN (...) AND exam_id IN (SELECT id FROM exams WHERE examiner_id = ?)
-
         $examinerId = $request->user()->id;
 
-        // Clean up responses first
-        \App\Models\Response::whereIn('question_id', $ids)->delete();
+        Response::whereIn('question_id', $ids)->delete();
 
-        // Delete questions securely (ensure they belong to examiner's exams)
         $deletedCount = Question::whereIn('id', $ids)
             ->whereHas('exam', function ($query) use ($examinerId) {
                 $query->where('examiner_id', $examinerId);
@@ -491,10 +584,6 @@ class ExamController extends Controller
         }
 
         $exam = $request->user()->exams()->findOrFail($id);
-
-        // Soft delete will preserve attempts and questions
-        // $exam->questions()->delete();
-        // $exam->attempts()->delete();
 
         $exam->delete();
 

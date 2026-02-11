@@ -12,18 +12,17 @@ class AuthController extends Controller
     public function registerCandidate(Request $request)
     {
         $validated = $request->validate([
-            'first_name' => 'required|string',
-            'last_name' => 'required|string',
-            'email' => 'required|email|unique:candidates',
+            'first_name' => 'required|string|min:2|max:50|regex:/^[a-zA-Z\s\-' . "']" . '+$/',
+            'last_name' => 'required|string|min:2|max:50|regex:/^[a-zA-Z\s\-' . "']" . '+$/',
+            'email' => 'required|email:rfc,dns|max:255|unique:candidates',
             'password' => ['required', 'confirmed', \Illuminate\Validation\Rules\Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
-            'phone_number' => 'required|string',
-            'date_of_birth' => 'nullable|date',
+            'phone_number' => 'required|string|regex:/^[\+]?[0-9]{7,15}$/',
+            'date_of_birth' => 'nullable|date|before:today',
             'gender' => 'required|in:male,female,other',
-            'address' => 'required|string',
+            'address' => 'required|string|min:5|max:255',
         ]);
 
         $examNumber = 'EXM' . date('Y') . rand(10000, 99999);
-        // Ensure uniqueness loop could be added here
 
         $candidate = \App\Models\Candidate::create([
             ...$validated,
@@ -32,25 +31,20 @@ class AuthController extends Controller
             'status' => 'active'
         ]);
 
-        $token = $candidate->createToken('candidate-token')->plainTextToken;
+        // Send verification email
+        $candidate->notify(new \App\Notifications\VerifyEmailNotification());
 
         return response()->json([
-            'token' => $token,
-            'user' => [
-                'id' => $candidate->id,
-                'name' => $candidate->first_name . ' ' . $candidate->last_name,
-                'email' => $candidate->email,
-                'exam_number' => $candidate->exam_number,
-                'role' => 'student'
-            ]
+            'message' => 'Registration successful! Please check your email to verify your account.',
+            'requires_verification' => true
         ], 201);
     }
 
     public function loginCandidate(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
+            'email' => 'required|email|max:255',
+            'password' => 'required|string|max:128',
         ]);
 
         $candidate = \App\Models\Candidate::where('email', $request->email)->first();
@@ -59,6 +53,15 @@ class AuthController extends Controller
             throw ValidationException::withMessages([
                 'email' => ['Invalid credentials.'],
             ]);
+        }
+
+        // Check if email is verified
+        if (!$candidate->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Please verify your email address first.',
+                'email_not_verified' => true,
+                'email' => $candidate->email
+            ], 403);
         }
 
         $token = $candidate->createToken('candidate-token')->plainTextToken;
@@ -78,8 +81,8 @@ class AuthController extends Controller
     public function loginExaminer(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
+            'email' => 'required|email|max:255',
+            'password' => 'required|string|max:128',
         ]);
 
         $examiner = \App\Models\Examiner::where('email', $request->email)->first();

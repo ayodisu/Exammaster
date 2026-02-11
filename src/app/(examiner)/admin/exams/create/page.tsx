@@ -37,20 +37,49 @@ export default function CreateExamPage() {
     });
 
     const handleCreate = async () => {
-        if (!topic) return;
+        if (!topic.trim()) {
+            setAlertState({
+                isOpen: true,
+                title: 'Invalid Input',
+                message: 'Please enter a topic or subject for the assessment.',
+                type: 'error'
+            });
+            return;
+        }
+
+        if (duration < 10 || duration > 300) {
+            setAlertState({
+                isOpen: true,
+                title: 'Invalid Duration',
+                message: 'Assessment duration must be between 10 and 300 minutes.',
+                type: 'error'
+            });
+            return;
+        }
+
+        if (datePart && timePart) {
+            const scheduledDate = new Date(`${datePart}T${timePart}`);
+            if (scheduledDate < new Date()) {
+                setAlertState({
+                    isOpen: true,
+                    title: 'Invalid Schedule',
+                    message: 'Scheduled date and time cannot be in the past.',
+                    type: 'error'
+                });
+                return;
+            }
+        }
+
         setIsLoading(true);
         try {
-            // Mock Generation...
-            await new Promise(r => setTimeout(r, 1000));
             const newExam = {
                 title: `${topic} ${examType === 'mock' ? 'Mock' : 'Exam'}`,
                 duration_minutes: duration,
                 type: examType,
                 scheduled_at: (datePart && timePart) ? `${datePart}T${timePart}` : null,
-                questions: [] // No sample questions
+                questions: []
             };
 
-            // Save to Backend
             const res = await axios.post(apiUrl('assessments'), newExam, {
                 headers: getAuthHeaders()
             });
@@ -64,8 +93,6 @@ export default function CreateExamPage() {
             });
 
             setTimeout(() => {
-                // Redirect to the Exam Details / Edit Page explicitly
-                // This allows examiner to add questions and activate immediately.
                 router.push(`/admin/exams/${createdExam.id}`);
             }, 1000);
 
@@ -73,8 +100,12 @@ export default function CreateExamPage() {
             console.error('Creation error:', error);
             let msg = "Failed to create assessment. Please ensure all inputs are valid.";
             if (error && typeof error === 'object' && 'response' in error) {
-                const axiosErr = error as { response?: { data?: { message?: string } } };
-                msg = axiosErr.response?.data?.message || msg;
+                const axiosErr = error as { response?: { data?: { message?: string, errors?: Record<string, string[]> } } };
+                if (axiosErr.response?.data?.errors) {
+                    msg = Object.values(axiosErr.response.data.errors).flat().join(' ');
+                } else {
+                    msg = axiosErr.response?.data?.message || msg;
+                }
             }
             setAlertState({
                 isOpen: true,

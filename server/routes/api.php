@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\EmailVerificationController;
 use App\Http\Controllers\ExamController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -9,6 +10,11 @@ use Illuminate\Support\Facades\Route;
 Route::post('/candidate/register', [AuthController::class, 'registerCandidate']);
 Route::post('/candidate/login', [AuthController::class, 'loginCandidate']);
 Route::post('/examiner/login', [AuthController::class, 'loginExaminer']);
+
+// Email Verification (public, uses signed URLs)
+Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+    ->name('verification.verify');
+Route::post('/email/resend', [EmailVerificationController::class, 'resend']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -45,4 +51,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/attempts/{attemptId}/save', [ExamController::class, 'saveAnswer']);
     Route::post('/attempts/{attemptId}/finish', [ExamController::class, 'finish']);
     Route::get('/attempts', [ExamController::class, 'userAttempts']);
+    Route::get('/attempts/{id}/detail', [ExamController::class, 'attemptDetail']);
 });
