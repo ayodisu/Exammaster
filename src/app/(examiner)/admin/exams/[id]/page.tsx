@@ -235,10 +235,15 @@ export default function ExamDetailPage() {
                                 {exam.is_active ? 'Active' : 'Ended'}
                             </span>
                         </div>
-                        <div className="flex items-center gap-4 mt-2 text-slate-500 text-sm font-medium">
+                        <div className="flex items-center gap-4 mt-2 text-slate-500 text-sm font-medium flex-wrap">
                             <span className="flex items-center gap-1"><Clock size={16} /> {exam.duration_minutes} Mins</span>
                             <span className="flex items-center gap-1"><Calendar size={16} /> {new Date(exam.created_at || '').toLocaleDateString()}</span>
                             <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded uppercase text-xs">{exam.type}</span>
+                            {(exam as ExamDetail & { examiner?: { name?: string } }).examiner?.name && (
+                                <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-semibold">
+                                    Created by {(exam as ExamDetail & { examiner?: { name?: string } }).examiner!.name}
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>

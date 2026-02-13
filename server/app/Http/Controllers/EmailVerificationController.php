@@ -6,6 +6,7 @@ use App\Models\Candidate;
 use App\Notifications\WelcomeNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use \App\Notifications\VerifyEmailNotification;
 
 class EmailVerificationController extends Controller
 {
@@ -66,7 +67,7 @@ class EmailVerificationController extends Controller
             return response()->json(['message' => 'Email already verified.']);
         }
 
-        $candidate->notify(new \App\Notifications\VerifyEmailNotification());
+        $candidate->notify(new VerifyEmailNotification());
 
         return response()->json(['message' => 'Verification link sent!']);
     }

@@ -40,6 +40,7 @@ class Exam extends Model
         'scheduled_at',
         'is_active',
         'enabled_at',
+        'max_retakes',
     ];
 
     protected $casts = [

@@ -68,7 +68,6 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
         const elem = document.documentElement;
         if (elem.requestFullscreen) {
             elem.requestFullscreen().catch(() => {
-                // Fail silently or show a non-intrusive waring if needed
                 // console.warn("Fullscreen request denied or ignored.");
             });
         }
@@ -79,15 +78,12 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
             setIsFullscreen(!!document.fullscreenElement);
         };
         document.addEventListener('fullscreenchange', handleFullscreenChange);
-        // Only try on mount if user interaction is not required (unlikely)
-        // Better to wait for first click
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, []);
 
     // Auto-submit on page close/navigate away
     useEffect(() => {
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            // Try to submit using sendBeacon for reliability
             const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
             if (token && !submissionResult) {
                 navigator.sendBeacon(
@@ -95,14 +91,12 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
                     JSON.stringify({})
                 );
             }
-            // Show browser confirmation dialog
             e.preventDefault();
             e.returnValue = 'Your exam will be submitted if you leave. Are you sure?';
             return e.returnValue;
         };
 
         const handlePageHide = () => {
-            // Fallback for mobile browsers
             const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
             if (token && !submissionResult) {
                 navigator.sendBeacon(
@@ -113,7 +107,6 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
         };
 
         const handleVisibilityChange = () => {
-            // If page becomes hidden (tab closed, switched away for too long), submit
             if (document.visibilityState === 'hidden' && !submissionResult) {
                 const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
                 if (token) {
@@ -151,7 +144,6 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
                     headers: getAuthHeaders()
                 });
             } catch (err) {
-                // Silently fail for background saves to avoid interrupting user
                 console.error('Save failed', err);
             }
         }
@@ -182,7 +174,6 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
             setShowResultModal(true);
             if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
 
-            // Auto-redirect to dashboard after 5 seconds
             setTimeout(() => {
                 router.push('/student-dashboard');
             }, 5000);
@@ -217,7 +208,7 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
     useEffect(() => {
         if (violationCount >= MAX_VIOLATIONS && !isSubmitting && !submissionResult) {
             setTimeout(() => {
-                setAlertState(prev => ({ ...prev, isOpen: false })); // Close warning
+                setAlertState(prev => ({ ...prev, isOpen: false }));
                 handleSubmit();
             }, 0);
         }
@@ -495,7 +486,6 @@ export default function ExamEngine({ attempt, initialQuestions }: ExamEngineProp
                         Next <ChevronRight size={20} />
                     </button>
                 ) : (
-                    // On mobile, show submit button here if it's the last question
                     Object.keys(answers).length === initialQuestions.length ? (
                         <button
                             onClick={confirmSubmit}

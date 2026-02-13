@@ -7,10 +7,13 @@ use App\Models\Candidate;
 use App\Models\Exam;
 use App\Models\Question;
 use App\Models\Response;
+use App\Models\Examiner;
 use App\Notifications\ExamDueNotification;
 use App\Notifications\ExamResultNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use \Illuminate\Database\QueryException;
+use \Illuminate\Support\Facades\Log;
 
 class ExamController extends Controller
 {
@@ -18,9 +21,8 @@ class ExamController extends Controller
     {
         $user = $request->user();
         if ($user instanceof \App\Models\Examiner) {
-            $exams = Exam::where('examiner_id', $user->id)->with('attempts')->get();
+            $exams = Exam::with(['attempts', 'examiner:id,name'])->get();
             return $exams->map(function ($exam) {
-                // Filter only submitted attempts for stats
                 $attempts = $exam->attempts->where('status', 'submitted');
                 $count = $attempts->count();
                 $avg = $count > 0 ? $attempts->avg('score') : 0;
@@ -32,18 +34,31 @@ class ExamController extends Controller
                     'avg_score' => round($avg, 1),
                     'pass_rate' => round($rate, 1)
                 ];
+                $exam->created_by = $exam->examiner->name ?? 'Unknown';
                 unset($exam->attempts);
                 return $exam;
             });
         }
 
-        // For students: return all published exams with availability status
+        // For students: return all published exams with availability status + retake info
         $exams = Exam::where('is_published', true)->get();
-        return $exams->map(function ($exam) {
-            // Exam is takeable if it's active
+        $studentId = $user->id;
+
+        return $exams->map(function ($exam) use ($studentId) {
             $exam->can_take = $exam->is_active;
 
-            // Calculate if exam is scheduled for future
+            // Count how many completed attempts this student has for this exam
+            $exam->attempts_used = Attempt::where('student_id', $studentId)
+                ->where('exam_id', $exam->id)
+                ->whereIn('status', ['submitted', 'terminated'])
+                ->count();
+
+            // Check for an ongoing attempt
+            $exam->has_ongoing = Attempt::where('student_id', $studentId)
+                ->where('exam_id', $exam->id)
+                ->where('status', 'ongoing')
+                ->exists();
+
             if ($exam->scheduled_at && !$exam->is_active) {
                 $exam->is_scheduled = true;
                 $exam->scheduled_time = $exam->scheduled_at;
@@ -57,18 +72,13 @@ class ExamController extends Controller
 
     public function store(Request $request)
     {
-
-
-        if (! $request->user() instanceof \App\Models\Examiner) {
-            abort(403, 'Unauthorized');
-        }
-
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'duration_minutes' => 'required|integer|min:1|max:600',
             'type' => 'required|in:exam,mock,test',
             'scheduled_at' => 'nullable|date|after_or_equal:now',
             'settings_json' => 'nullable|array',
+            'max_retakes' => 'nullable|integer|min:0|max:10',
             'questions' => 'nullable|array',
             'questions.*.text' => 'required|string|max:5000',
             'questions.*.type' => 'required|string|in:mcq,tf',
@@ -78,14 +88,13 @@ class ExamController extends Controller
 
         $examData = collect($validated)->except('questions')->toArray();
 
-        // If exam has a scheduled date, it should start as inactive
-        // The scheduler will enable it at the scheduled time
+
         $hasSchedule = !empty($validated['scheduled_at']);
 
         $exam = $request->user()->exams()->create([
             ...$examData,
             'is_published' => true,
-            'is_active' => false // Default to inactive so examiner can upload questions first
+            'is_active' => false
         ]);
 
         if (!empty($validated['questions'])) {
@@ -109,32 +118,46 @@ class ExamController extends Controller
 
     public function show(Request $request, $id)
     {
-        if ($request->user() instanceof \App\Models\Examiner) {
-            return $request->user()->exams()->with('questions')->findOrFail($id);
+        if ($request->user() instanceof Examiner) {
+            return Exam::with(['questions', 'examiner:id,name'])->findOrFail($id);
         }
-        // If candidate, check if active
+
         return Exam::where('is_active', true)->with('questions')->findOrFail($id);
     }
 
     public function stats(Request $request)
     {
-
-
-        if (! $request->user() instanceof \App\Models\Examiner) {
-            abort(403, 'Unauthorized');
-        }
-
         $exams = $request->user()->exams()->withTrashed()->with('attempts')->get();
 
         $uniqueStudentIds = [];
         $totalDurations = 0;
         $attemptCountForDuration = 0;
+        $allScores = [];
+        $totalPassed = 0;
+        $totalSubmitted = 0;
+        $perExamStats = [];
 
         foreach ($exams as $exam) {
-            $attempts = $exam->attempts->where('status', 'submitted');
+            $submitted = $exam->attempts->where('status', 'submitted');
+            $examSubmittedCount = $submitted->count();
+            $examAvgScore = $examSubmittedCount > 0 ? $submitted->avg('score') : 0;
+            $examPassed = $submitted->where('score', '>=', 50)->count();
 
-            foreach ($attempts as $attempt) {
+            $totalSubmitted += $examSubmittedCount;
+            $totalPassed += $examPassed;
+
+            $perExamStats[] = [
+                'id' => $exam->id,
+                'title' => $exam->title,
+                'type' => $exam->type,
+                'attempts' => $examSubmittedCount,
+                'avg_score' => round($examAvgScore, 1),
+                'pass_rate' => $examSubmittedCount > 0 ? round(($examPassed / $examSubmittedCount) * 100, 1) : 0,
+            ];
+
+            foreach ($submitted as $attempt) {
                 $uniqueStudentIds[$attempt->student_id] = true;
+                $allScores[] = $attempt->score;
 
                 $start = Carbon::parse($attempt->started_at);
                 $end = Carbon::parse($attempt->submitted_at);
@@ -144,49 +167,85 @@ class ExamController extends Controller
         }
 
         $avgDuration = $attemptCountForDuration > 0 ? round($totalDurations / $attemptCountForDuration) . ' mins' : '--';
+        $overallPassRate = $totalSubmitted > 0 ? round(($totalPassed / $totalSubmitted) * 100, 1) : 0;
+
+        // Score distribution (0-20, 21-40, 41-60, 61-80, 81-100)
+        $distribution = [
+            '0-20' => 0,
+            '21-40' => 0,
+            '41-60' => 0,
+            '61-80' => 0,
+            '81-100' => 0,
+        ];
+        foreach ($allScores as $score) {
+            if ($score <= 20) $distribution['0-20']++;
+            elseif ($score <= 40) $distribution['21-40']++;
+            elseif ($score <= 60) $distribution['41-60']++;
+            elseif ($score <= 80) $distribution['61-80']++;
+            else $distribution['81-100']++;
+        }
 
         return response()->json([
             'total_students' => count($uniqueStudentIds),
-            'avg_duration' => $avgDuration
+            'total_exams' => $exams->count(),
+            'total_attempts' => $totalSubmitted,
+            'avg_duration' => $avgDuration,
+            'overall_pass_rate' => $overallPassRate,
+            'avg_score' => count($allScores) > 0 ? round(array_sum($allScores) / count($allScores), 1) : 0,
+            'score_distribution' => $distribution,
+            'per_exam' => $perExamStats,
         ]);
     }
 
     public function start(Request $request, $id)
     {
         $exam = Exam::findOrFail($id);
-        
+
         if (!$exam->is_active) {
             return response()->json(['message' => 'This exam is not currently active.'], 403);
         }
 
         $user = $request->user();
 
-        try {
-            $attempt = Attempt::firstOrCreate(
-                [
-                    'student_id' => $user->id,
-                    'exam_id' => $exam->id
-                ],
-                [
-                    'started_at' => Carbon::now(),
-                    'status' => 'ongoing',
-                ]
-            );
-        } catch (\Illuminate\Database\QueryException $e) {
-            // Handle race condition: If insertion fails due to duplicate entry, fetch the existing attempt
-            if ($e->errorInfo[1] == 1062) {
-                $attempt = Attempt::where('student_id', $user->id)
-                    ->where('exam_id', $exam->id)
-                    ->firstOrFail();
-            } else {
-                throw $e;
+        // Check for an ongoing attempt first — resume it
+        $ongoingAttempt = Attempt::where('student_id', $user->id)
+            ->where('exam_id', $exam->id)
+            ->where('status', 'ongoing')
+            ->first();
+
+        if ($ongoingAttempt) {
+            $attempt = $ongoingAttempt;
+        } else {
+            // Count completed attempts
+            $completedAttempts = Attempt::where('student_id', $user->id)
+                ->where('exam_id', $exam->id)
+                ->whereIn('status', ['submitted', 'terminated'])
+                ->count();
+
+            // max_retakes = number of EXTRA attempts beyond the first
+            // Total allowed attempts = 1 + max_retakes
+            $totalAllowed = 1 + $exam->max_retakes;
+
+            if ($completedAttempts >= $totalAllowed) {
+                return response()->json([
+                    'message' => 'You have used all your attempts for this exam.',
+                    'attempts_used' => $completedAttempts,
+                    'max_retakes' => $exam->max_retakes,
+                ], 403);
             }
+
+            // Create a new attempt
+            $attempt = Attempt::create([
+                'student_id' => $user->id,
+                'exam_id' => $exam->id,
+                'started_at' => Carbon::now(),
+                'status' => 'ongoing',
+            ]);
         }
 
-        // Load exam without questions first
+        // Load exam with questions
         $attempt->load('exam');
 
-        // Get questions and shuffle deterministically based on attempt ID
         $questions = $attempt->exam->questions;
         $seed = $attempt->id;
 
@@ -194,7 +253,6 @@ class ExamController extends Controller
             return md5($q->id . $seed);
         })->values();
 
-        // Set the shuffled questions back to the relation
         $attempt->exam->setRelation('questions', $shuffled);
 
         return response()->json($attempt);
@@ -218,14 +276,12 @@ class ExamController extends Controller
         $isCorrect = false;
 
         if ($question->type === 'mcq' || $question->type === 'tf') {
-            // Direct Check (if ID == Correct Answer Text, usually for Manual questions with ID=Text)
+
             $isCorrect = $validated['student_answer'] == $question->correct_answer;
 
-            // Fail-safe: Check if Option ID matches but Text was stored as Correct Answer (Common in Imports)
             if (!$isCorrect && !empty($question->options_json)) {
                 $options = is_string($question->options_json) ? json_decode($question->options_json, true) : $question->options_json;
 
-                // Find option where ID matches student answer
                 $selectedOption = collect($options)->firstWhere('id', $validated['student_answer']);
 
                 if ($selectedOption) {
@@ -270,7 +326,7 @@ class ExamController extends Controller
                 $student->notify(new ExamResultNotification($attempt->exam, $score));
             }
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Failed to send result email: ' . $e->getMessage());
+            Log::warning('Failed to send result email: ' . $e->getMessage());
         }
 
         return response()->json([
@@ -365,15 +421,10 @@ class ExamController extends Controller
 
     public function toggleStatus(Request $request, $id)
     {
-        if (! $request->user() instanceof \App\Models\Examiner) {
-            abort(403, 'Unauthorized');
-        }
-
-        $exam = $request->user()->exams()->findOrFail($id);
+        $exam = Exam::findOrFail($id);
 
         $newActiveState = !$exam->is_active;
 
-        // When manually enabling, set enabled_at for 1hr window tracking
         $exam->update([
             'is_active' => $newActiveState,
             'enabled_at' => $newActiveState ? Carbon::now() : null
@@ -391,7 +442,7 @@ class ExamController extends Controller
                 try {
                     $candidate->notify(new ExamDueNotification($exam));
                 } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::warning('Failed to send exam notification to candidate #' . $candidate->id . ': ' . $e->getMessage());
+                    Log::warning('Failed to send exam notification to candidate #' . $candidate->id . ': ' . $e->getMessage());
                 }
             }
         }
@@ -401,16 +452,10 @@ class ExamController extends Controller
 
     public function getAttempts(Request $request, $id)
     {
-        if (! $request->user() instanceof \App\Models\Examiner) {
-            abort(403, 'Unauthorized');
-        }
+        $exam = Exam::findOrFail($id);
 
-        $exam = $request->user()->exams()->findOrFail($id);
-
-        // Fetch attempts with student details
         $attempts = Attempt::where('exam_id', $exam->id)
             ->with(['student' => function ($query) {
-                // Select columns that ACTUALLY exist
                 $query->select('id', 'first_name', 'last_name', 'email', 'exam_number');
             }])
             ->orderBy('created_at', 'desc')
@@ -421,10 +466,6 @@ class ExamController extends Controller
 
     public function importQuestions(Request $request, $id)
     {
-        if (! $request->user() instanceof \App\Models\Examiner) {
-            abort(403, 'Unauthorized');
-        }
-
         $request->validate([
             'file' => 'required|file|mimes:csv,txt',
         ]);
@@ -440,7 +481,7 @@ class ExamController extends Controller
             // Expected Format:
             // 0: Text, 1: Type (mcq/tf), 2: OptA, 3: OptB, 4: OptC, 5: OptD, 6: Correct (A/B/C/D)
 
-            if (count($row) < 7 || empty($row[0])) continue; // Check for minimum columns and non-empty question text
+            if (count($row) < 7 || empty($row[0])) continue;
 
             $text = $row[0];
             $type = strtolower($row[1]);
@@ -490,8 +531,6 @@ class ExamController extends Controller
 
     public function addQuestion(Request $request, $id)
     {
-        if (! $request->user() instanceof \App\Models\Examiner) abort(403);
-
         $exam = $request->user()->exams()->findOrFail($id);
 
         $validated = $request->validate([
@@ -508,7 +547,7 @@ class ExamController extends Controller
 
     public function updateQuestion(Request $request, $id)
     {
-        if (! $request->user() instanceof \App\Models\Examiner) abort(403);
+        if (! $request->user() instanceof Examiner) abort(403);
 
         $question = Question::findOrFail($id);
         $exam = $request->user()->exams()->findOrFail($question->exam_id);
@@ -527,7 +566,7 @@ class ExamController extends Controller
 
     public function deleteQuestion(Request $request, $id)
     {
-        if (! $request->user() instanceof \App\Models\Examiner) abort(403);
+        if (! $request->user() instanceof Examiner) abort(403);
 
         $question = Question::findOrFail($id);
         $exam = $request->user()->exams()->findOrFail($question->exam_id);
@@ -541,7 +580,7 @@ class ExamController extends Controller
 
     public function deleteQuestions(Request $request)
     {
-        if (! $request->user() instanceof \App\Models\Examiner) abort(403);
+
 
         $request->validate([
             'ids' => 'required|array',
@@ -565,9 +604,7 @@ class ExamController extends Controller
 
     public function deleteAttempt(Request $request, $examId, $attemptId)
     {
-        if (! $request->user() instanceof \App\Models\Examiner) abort(403);
-
-        $exam = $request->user()->exams()->findOrFail($examId);
+        $exam = Exam::findOrFail($examId);
         $attempt = Attempt::where('exam_id', $exam->id)->findOrFail($attemptId);
 
         $attempt->delete();
@@ -577,7 +614,7 @@ class ExamController extends Controller
 
     public function destroy(Request $request, $id)
     {
-        if (! $request->user() instanceof \App\Models\Examiner) {
+        if (! $request->user() instanceof Examiner) {
             abort(403, 'Unauthorized');
         }
 

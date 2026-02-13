@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 use Illuminate\Auth\Passwords\CanResetPassword;
 use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
+use \App\Notifications\ResetCandidatePassword;
 
 class Candidate extends Authenticatable implements MustVerifyEmail, CanResetPasswordContract
 {
@@ -64,6 +65,6 @@ class Candidate extends Authenticatable implements MustVerifyEmail, CanResetPass
      */
     public function sendPasswordResetNotification($token)
     {
-        $this->notify(new \App\Notifications\ResetCandidatePassword($token));
+        $this->notify(new ResetCandidatePassword($token));
     }
 }

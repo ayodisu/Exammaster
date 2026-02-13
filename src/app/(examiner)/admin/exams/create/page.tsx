@@ -4,9 +4,8 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { apiUrl, getAuthHeaders } from '@/config/api';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, BookOpen, BrainCircuit, Layers, ArrowLeft, Calendar, Clock } from 'lucide-react';
+import { Loader2, BookOpen, BrainCircuit, Layers, ArrowLeft, Calendar, Clock, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
-// import { generateExam } from '@/services/geminiService'; // TODO: Move to API route
 
 import AlertModal from '@/components/ui/AlertModal';
 
@@ -21,6 +20,7 @@ export default function CreateExamPage() {
     const [datePart, setDatePart] = useState(prefilledDate || '');
     const [timePart, setTimePart] = useState('09:00');
     const [duration, setDuration] = useState(60);
+    const [maxRetakes, setMaxRetakes] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
 
     // Alert State
@@ -77,7 +77,8 @@ export default function CreateExamPage() {
                 duration_minutes: duration,
                 type: examType,
                 scheduled_at: (datePart && timePart) ? `${datePart}T${timePart}` : null,
-                questions: []
+                questions: [],
+                max_retakes: maxRetakes,
             };
 
             const res = await axios.post(apiUrl('assessments'), newExam, {
@@ -203,6 +204,24 @@ export default function CreateExamPage() {
                                     className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                                 />
                             </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">Max Retakes</label>
+                            <div className="relative">
+                                <RefreshCw className="absolute left-3 top-3.5 text-slate-400" size={20} />
+                                <input
+                                    type="number"
+                                    min={0}
+                                    max={10}
+                                    value={maxRetakes}
+                                    onChange={(e) => setMaxRetakes(parseInt(e.target.value) || 0)}
+                                    className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                                />
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1">0 = no retakes (single attempt). Max 10.</p>
                         </div>
                     </div>
 

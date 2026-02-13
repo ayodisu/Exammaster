@@ -26,7 +26,7 @@ export default function ExaminerDashboard() {
         fetchExams();
     }, []);
 
-    const [stats, setStats] = useState({ total_students: 0, avg_duration: '--' });
+    const [stats, setStats] = useState({ total_students: 0, avg_duration: '--', total_attempts: 0, overall_pass_rate: 0, avg_score: 0, total_exams: 0 });
 
     const fetchExams = async () => {
         try {
@@ -183,37 +183,59 @@ export default function ExaminerDashboard() {
             </header>
 
             {/* Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl">
-                            <BookOpen size={24} />
+            <div className="flex flex-wrap gap-4">
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex-1 min-w-[160px]">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-indigo-100 text-indigo-600 rounded-xl">
+                            <BookOpen size={22} />
                         </div>
                         <div>
-                            <p className="text-slate-500 text-sm font-medium">Active Assessments</p>
-                            <h3 className="text-2xl font-bold text-slate-800">{exams.length}</h3>
+                            <p className="text-slate-500 text-xs font-medium">Assessments</p>
+                            <h3 className="text-xl font-bold text-slate-800">{exams.length}</h3>
                         </div>
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 bg-purple-100 text-purple-600 rounded-xl">
-                            <Users size={24} />
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex-1 min-w-[160px]">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-purple-100 text-purple-600 rounded-xl">
+                            <Users size={22} />
                         </div>
                         <div>
-                            <p className="text-slate-500 text-sm font-medium">Total Candidates</p>
-                            <h3 className="text-2xl font-bold text-slate-800">{stats.total_students}</h3>
+                            <p className="text-slate-500 text-xs font-medium">Candidates</p>
+                            <h3 className="text-xl font-bold text-slate-800">{stats.total_students}</h3>
                         </div>
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 bg-blue-100 text-blue-600 rounded-xl">
-                            <Clock size={24} />
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex-1 min-w-[160px]">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-blue-100 text-blue-600 rounded-xl">
+                            <Clock size={22} />
                         </div>
                         <div>
-                            <p className="text-slate-500 text-sm font-medium">Avg Duration</p>
-                            <h3 className="text-2xl font-bold text-slate-800">{stats.avg_duration}</h3>
+                            <p className="text-slate-500 text-xs font-medium">Avg Duration</p>
+                            <h3 className="text-xl font-bold text-slate-800">{stats.avg_duration}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex-1 min-w-[160px]">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-emerald-100 text-emerald-600 rounded-xl">
+                            <ChevronRight size={22} />
+                        </div>
+                        <div>
+                            <p className="text-slate-500 text-xs font-medium">Pass Rate</p>
+                            <h3 className="text-xl font-bold text-slate-800">{stats.overall_pass_rate}%</h3>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex-1 min-w-[160px]">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-amber-100 text-amber-600 rounded-xl">
+                            <BookOpen size={22} />
+                        </div>
+                        <div>
+                            <p className="text-slate-500 text-xs font-medium">Avg Score</p>
+                            <h3 className="text-xl font-bold text-slate-800">{stats.avg_score}%</h3>
                         </div>
                     </div>
                 </div>

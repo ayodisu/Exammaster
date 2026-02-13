@@ -1,6 +1,6 @@
 export interface User {
     id: number;
-    name?: string; // Optional as backend uses first_name/last_name
+    name?: string;
     first_name?: string;
     last_name?: string;
     exam_number?: string;
@@ -11,6 +11,8 @@ export interface User {
     created_at?: string;
     email: string;
     role: 'student' | 'examiner' | 'candidate';
+    is_admin?: boolean;
+    status?: string;
 }
 
 export interface Question {
@@ -33,10 +35,13 @@ export interface Exam {
     is_published?: boolean;
     created_at?: string;
     updated_at?: string;
+    max_retakes?: number;
     // Dynamic properties added by API
     is_scheduled?: boolean;
     can_take?: boolean;
     scheduled_time?: string;
+    attempts_used?: number;
+    has_ongoing?: boolean;
     stats?: {
         attempts: number;
         avg_score: number;

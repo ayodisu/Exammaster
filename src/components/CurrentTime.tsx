@@ -1,18 +1,21 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { Clock } from 'lucide-react';
 
-export default function CurrentTime() {
-    const [time, setTime] = useState(new Date());
+function CurrentTime() {
+    const [time, setTime] = useState<Date | null>(null);
 
     useEffect(() => {
+        setTime(new Date());
         const timer = setInterval(() => {
             setTime(new Date());
-        }, 1000);
+        }, 60000);
 
         return () => clearInterval(timer);
     }, []);
+
+    if (!time) return null;
 
     return (
         <div className="flex items-center gap-2 text-slate-500 bg-white px-4 py-2 rounded-full border border-slate-200 shadow-sm text-sm font-medium">
@@ -30,9 +33,10 @@ export default function CurrentTime() {
                 {time.toLocaleTimeString(undefined, {
                     hour: '2-digit',
                     minute: '2-digit',
-                    second: '2-digit'
                 })}
             </span>
         </div>
     );
 }
+
+export default memo(CurrentTime);

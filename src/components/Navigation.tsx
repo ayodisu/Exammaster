@@ -14,10 +14,10 @@ export default function Navigation() {
     const pathname = usePathname();
     const [user, setUser] = useState<User | null>(null);
 
-    const isHidden = ['/', '/student/login', '/student/register', '/examiner/login'].includes(pathname); // Determine visibility
+    const isHidden = ['/', '/student/login', '/student/register', '/examiner/login'].includes(pathname); 
 
     useEffect(() => {
-        if (isHidden) return; // Don't fetch if hidden
+        if (isHidden) return; 
         const fetchUser = async () => {
              try {
                 const res = await axios.get(apiUrl('user'), {
@@ -25,7 +25,7 @@ export default function Navigation() {
                 });
                 setUser(res.data);
             } catch {
-                // Ignore error
+
             }
         };
         fetchUser();
@@ -45,9 +45,7 @@ export default function Navigation() {
 
     if (isHidden || !user) return null;
 
-    const isExaminer = user.role === 'examiner'; // Check backend role value ('examiner' or 'admin'?)
-    // Warning: Backend might use 'admin' or 'examiner'. I should check AuthController.
-    // User migration said `enum('student', 'examiner')`.
+    const isExaminer = user.role === 'examiner'; 
 
     return (
         <nav className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">

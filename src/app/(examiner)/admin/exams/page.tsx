@@ -44,7 +44,7 @@ export default function AdminExamsPage() {
             await axios.put(apiUrl(`assessments/${id}/status`), {}, {
                 headers: getAuthHeaders()
             });
-            
+
             setExams(prev => prev.map(e => e.id === id ? { ...e, is_active: !e.is_active } : e));
             setAlertState({ isOpen: true, title: 'Success', message: 'Exam status updated.', type: 'success' });
         } catch (error: unknown) {
@@ -72,17 +72,17 @@ export default function AdminExamsPage() {
 
     const filteredExams = exams.filter(exam => {
         const matchesSearch = exam.title.toLowerCase().includes(filter.toLowerCase());
-        
+
         let matchesStatus = true;
         const status = getStatus(exam).toLowerCase();
         if (statusFilter !== 'all') {
             matchesStatus = status === statusFilter;
         }
-        
+
         let matchesScheduled = true;
         if (scheduledDateFilter) {
-             if (!exam.scheduled_at) matchesScheduled = false;
-             else matchesScheduled = new Date(exam.scheduled_at).toISOString().split('T')[0] === scheduledDateFilter;
+            if (!exam.scheduled_at) matchesScheduled = false;
+            else matchesScheduled = new Date(exam.scheduled_at).toISOString().split('T')[0] === scheduledDateFilter;
         }
 
         return matchesSearch && matchesStatus && matchesScheduled;
@@ -90,8 +90,8 @@ export default function AdminExamsPage() {
 
     return (
         <div className="p-8 min-h-screen bg-slate-50 text-slate-900 space-y-8 animate-in fade-in duration-500">
-            <AlertModal 
-                onClose={() => setAlertState(prev => ({...prev, isOpen: false}))}
+            <AlertModal
+                onClose={() => setAlertState(prev => ({ ...prev, isOpen: false }))}
                 {...alertState}
             />
 
@@ -102,7 +102,7 @@ export default function AdminExamsPage() {
                 </div>
                 <div className="flex items-center gap-4">
                     <CurrentTime />
-                    <Link 
+                    <Link
                         href="/admin/exams/create?returnTo=assessments"
                         className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-200 transition-all active:scale-95"
                     >
@@ -116,9 +116,9 @@ export default function AdminExamsPage() {
                 <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-50/50">
                     <div className="relative w-full sm:w-96">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                        <input 
-                            type="text" 
-                            placeholder="Search assessments..." 
+                        <input
+                            type="text"
+                            placeholder="Search assessments..."
                             value={filter}
                             onChange={(e) => setFilter(e.target.value)}
                             className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
@@ -129,10 +129,10 @@ export default function AdminExamsPage() {
                         <span>{filteredExams.length} Assessments</span>
                     </div>
                 </div>
-                
+
                 {/* Advanced Filters */}
                 <div className="px-6 py-4 bg-white border-b border-slate-100 flex flex-wrap gap-4 items-center">
-                    <select 
+                    <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
                         className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-500"
@@ -148,16 +148,16 @@ export default function AdminExamsPage() {
 
                     <div className="flex items-center gap-2">
                         <label className="text-xs font-semibold text-slate-500">Scheduled:</label>
-                        <input 
-                            type="date" 
+                        <input
+                            type="date"
                             value={scheduledDateFilter}
                             onChange={(e) => setScheduledDateFilter(e.target.value)}
                             className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-500"
                         />
                     </div>
-                    
+
                     {(statusFilter !== 'all' || scheduledDateFilter) && (
-                        <button 
+                        <button
                             onClick={() => {
                                 setStatusFilter('all');
                                 setScheduledDateFilter('');
@@ -201,19 +201,24 @@ export default function AdminExamsPage() {
                                         <td className="px-6 py-4">
                                             <div>
                                                 <div className="font-bold text-slate-800 text-base">{exam.title}</div>
-                                                <div className="text-xs text-slate-400 mt-1 flex items-center gap-2">
-                                                    <span className="flex items-center gap-1"><Clock size={12}/> {exam.duration_minutes} mins</span>
+                                                <div className="text-xs text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
+                                                    <span className="flex items-center gap-1"><Clock size={12} /> {exam.duration_minutes} mins</span>
                                                     <span>•</span>
                                                     <span>Created {new Date(exam.created_at || '').toLocaleDateString()}</span>
+                                                    {(exam as Exam & { created_by?: string }).created_by && (
+                                                        <>
+                                                            <span>•</span>
+                                                            <span className="text-indigo-500 font-medium">by {(exam as Exam & { created_by?: string }).created_by}</span>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
-                                                exam.type === 'mock' ? 'bg-amber-100 text-amber-700' :
-                                                exam.type === 'test' ? 'bg-purple-100 text-purple-700' :
-                                                'bg-blue-100 text-blue-700'
-                                            }`}>
+                                            <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${exam.type === 'mock' ? 'bg-amber-100 text-amber-700' :
+                                                    exam.type === 'test' ? 'bg-purple-100 text-purple-700' :
+                                                        'bg-blue-100 text-blue-700'
+                                                }`}>
                                                 {exam.type}
                                             </span>
                                         </td>
@@ -224,36 +229,33 @@ export default function AdminExamsPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-                                                getStatus(exam) === 'Active' ? 'bg-emerald-100 text-emerald-700' :
-                                                getStatus(exam) === 'Scheduled' ? 'bg-amber-100 text-amber-700' :
-                                                getStatus(exam) === 'Draft' ? 'bg-slate-100 text-slate-600' :
-                                                'bg-red-50 text-red-600' // Ended
-                                            }`}>
-                                                <span className={`w-2 h-2 rounded-full ${
-                                                    getStatus(exam) === 'Active' ? 'bg-emerald-500 animate-pulse' : 
-                                                    getStatus(exam) === 'Scheduled' ? 'bg-amber-500' :
-                                                    getStatus(exam) === 'Draft' ? 'bg-slate-400' :
-                                                    'bg-red-400'
-                                                }`}></span>
+                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${getStatus(exam) === 'Active' ? 'bg-emerald-100 text-emerald-700' :
+                                                    getStatus(exam) === 'Scheduled' ? 'bg-amber-100 text-amber-700' :
+                                                        getStatus(exam) === 'Draft' ? 'bg-slate-100 text-slate-600' :
+                                                            'bg-red-50 text-red-600' // Ended
+                                                }`}>
+                                                <span className={`w-2 h-2 rounded-full ${getStatus(exam) === 'Active' ? 'bg-emerald-500 animate-pulse' :
+                                                        getStatus(exam) === 'Scheduled' ? 'bg-amber-500' :
+                                                            getStatus(exam) === 'Draft' ? 'bg-slate-400' :
+                                                                'bg-red-400'
+                                                    }`}></span>
                                                 {getStatus(exam)}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                <button 
+                                                <button
                                                     onClick={() => handleToggleStatus(exam.id)}
                                                     disabled={togglingId === exam.id}
-                                                    className={`p-2 rounded-lg transition-colors ${
-                                                        exam.is_active 
-                                                            ? 'text-emerald-600 hover:bg-emerald-50' 
+                                                    className={`p-2 rounded-lg transition-colors ${exam.is_active
+                                                            ? 'text-emerald-600 hover:bg-emerald-50'
                                                             : 'text-slate-400 hover:bg-slate-100'
-                                                    }`}
+                                                        }`}
                                                     title={exam.is_active ? "End Assessment" : "Activate Assessment"}
                                                 >
-                                                    {togglingId === exam.id ? <Loader2 size={18} className="animate-spin"/> : <Power size={18} />}
+                                                    {togglingId === exam.id ? <Loader2 size={18} className="animate-spin" /> : <Power size={18} />}
                                                 </button>
-                                                <Link 
+                                                <Link
                                                     href={`/admin/exams/${exam.id}`}
                                                     className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
                                                 >

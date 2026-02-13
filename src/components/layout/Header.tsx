@@ -32,8 +32,6 @@ export default function Header({ roleLabel, onMenuClick, collapsed }: HeaderProp
     };
 
     useEffect(() => {
-        // Mock Notification Check
-        // setNotifications(1); 
         
         // Fetch User Name
         const fetchUser = async () => {
@@ -47,7 +45,7 @@ export default function Header({ roleLabel, onMenuClick, collapsed }: HeaderProp
                     setUserName(res.data.name);
                 }
             } catch {
-                // ignore error, keep default
+                
             }
         };
         fetchUser();

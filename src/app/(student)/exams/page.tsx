@@ -70,17 +70,29 @@ export default function StudentExamsPage() {
                         </div>
                     ) : (
                         exams.map((exam: Exam) => {
-                            const completedAttempt = results.find(r => r.exam_id === exam.id);
-                            const isCompleted = !!completedAttempt;
+                            const attemptsUsed = exam.attempts_used ?? 0;
+                            const maxRetakes = exam.max_retakes ?? 1;
+                            const hasOngoing = exam.has_ongoing ?? false;
+                            const isCompleted = attemptsUsed > 0;
+                            const canRetake = isCompleted && attemptsUsed < maxRetakes && exam.is_active;
+                            const canStart = (attemptsUsed === 0 || hasOngoing) && exam.is_active;
+
+                            // Find latest completed attempt for score display
+                            const completedAttempt = results.find(r => r.exam_id === exam.id && r.status === 'submitted');
 
                             return (
                                 <div key={exam.id} className={`p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50 transition-colors ${!exam.is_active ? 'opacity-75' : ''}`}>
                                     <div>
                                         <div className="flex items-center gap-3">
                                             <h3 className="font-bold text-slate-800 text-lg">{exam.title}</h3>
-                                            {isCompleted && (
+                                            {isCompleted && !hasOngoing && (
                                                 <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">
                                                     Completed
+                                                </span>
+                                            )}
+                                            {hasOngoing && (
+                                                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">
+                                                    In Progress
                                                 </span>
                                             )}
                                             {!exam.is_active && (
@@ -99,7 +111,12 @@ export default function StudentExamsPage() {
                                             <span className="bg-slate-100 px-2 py-0.5 rounded flex items-center gap-1">
                                                 <Clock size={12} /> {exam.duration_minutes} Mins
                                             </span>
-                                            {isCompleted && completedAttempt && (
+                                            {maxRetakes > 1 && (
+                                                <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded text-xs font-medium">
+                                                    {attemptsUsed}/{maxRetakes} attempts
+                                                </span>
+                                            )}
+                                            {completedAttempt && (
                                                 <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded flex items-center gap-1">
                                                     <Award size={12} /> Score: {completedAttempt.score || 0}%
                                                 </span>
@@ -110,29 +127,26 @@ export default function StudentExamsPage() {
                                     {/* Action Button */}
                                     <div>
                                         {(() => {
-                                            const isRetakeAllowed = isCompleted && exam.type === 'mock' && exam.is_active;
-                                            const canStart = !isCompleted && exam.is_active;
-
                                             if (canStart) {
                                                 return (
                                                     <Link href={`/exam/${exam.id}`}>
                                                         <button className="px-6 py-2 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 transition-all hover:scale-105 active:scale-95">
-                                                            Start Assessment
+                                                            {hasOngoing ? 'Resume Assessment' : 'Start Assessment'}
                                                         </button>
                                                     </Link>
                                                 );
-                                            } else if (isRetakeAllowed) {
+                                            } else if (canRetake) {
                                                 return (
                                                     <Link href={`/exam/${exam.id}`}>
                                                         <button className="px-6 py-2 rounded-xl font-bold text-sm bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-200 transition-all hover:scale-105 active:scale-95">
-                                                            Retake Mock
+                                                            Retake ({maxRetakes - attemptsUsed} left)
                                                         </button>
                                                     </Link>
                                                 );
                                             } else {
                                                 return (
                                                     <button disabled className="px-6 py-2 rounded-xl font-bold text-sm bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200">
-                                                        {isCompleted ? 'View Results' : 'Not Available'}
+                                                        {isCompleted ? 'No Retakes Left' : 'Not Available'}
                                                     </button>
                                                 );
                                             }

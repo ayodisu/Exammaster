@@ -15,7 +15,8 @@ class Examiner extends Authenticatable
         'name',
         'email',
         'password',
-        'is_admin'
+        'is_admin',
+        'status',
     ];
 
     protected $hidden = [
